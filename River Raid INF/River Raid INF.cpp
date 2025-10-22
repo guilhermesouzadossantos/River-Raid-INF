@@ -81,7 +81,7 @@ int main() {
 			POSICAOX_INIMIGO_BARCO = -500;
 			POSICAOY_MISSIL = -50;
 		}
-
+		//tested de git
 
 		// DRAW
 		DrawTextureRec(SPRITES, NAVE, position_nave, WHITE); // Desenha a nave do jogador
