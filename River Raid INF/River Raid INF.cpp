@@ -63,6 +63,9 @@ int main() {
 		if (IsKeyPressed(KEY_LEFT)) {
 			POSICAOX_NAVE -= 40;
 		}
+		if (IsKeyPressed(KEY_DOWN)) {
+			POSICAOY_NAVE += 15;
+		}
 		if (POSICAOY_NAVE == 0) {
 			POSICAOY_NAVE = 450;
 		}
