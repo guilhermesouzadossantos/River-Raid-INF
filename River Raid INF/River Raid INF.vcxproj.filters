@@ -22,9 +22,4 @@
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
-  <ItemGroup>
-    <Image Include="..\..\..\..\Downloads\sprites.png">
-      <Filter>Source Files</Filter>
-    </Image>
-  </ItemGroup>
 </Project>
