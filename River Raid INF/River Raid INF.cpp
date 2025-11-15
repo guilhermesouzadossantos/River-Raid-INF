@@ -9,8 +9,8 @@
 #define LARGURA 960
 #define ALTURA 800
 #define TILE_SIZE 40
-#define LARGURA_MAPA 24
-#define ALTURA_MAPA 20
+#define LARGURA_MAPA 48
+#define ALTURA_MAPA 40
 
 // Estrutura para representar o mapa do jogo
 typedef struct {
@@ -21,14 +21,14 @@ typedef struct {
     int tem_ponte;
 } Mapa;
 
-// Variáveis globais
+// Variaveis globais
 Mapa mapa_atual;
 int fase_atual = 1;
-int total_fases = 3;
+int total_fases = 4;
 int jogo_completo = 0;
 int velocidade_nave = 3; // Velocidade de movimento automático da nave (talvez aumentar a cada fase?)
 
-// Função para carregar mapa do arquivo (errno_t para não dar erro ...)
+// Função para carregar mapa do arquivo (errno_t para n?o dar erro ...)
 int carregar_mapa(const char* nome_arquivo, Mapa* mapa) {
     FILE* arquivo = NULL;
     errno_t err = fopen_s(&arquivo, nome_arquivo, "r");
@@ -37,14 +37,14 @@ int carregar_mapa(const char* nome_arquivo, Mapa* mapa) {
         return 0;
     }
 
-    // Inicializar contadores (começa em zero para nova contagem)
-    mapa->num_navios = 0; // Usar "->" porque Mapa é um ponteiro, não a struct em si
+    // Inicializar contadores (come?a em zero para nova contagem)
+    mapa->num_navios = 0; // Usar "->" porque Mapa ? um ponteiro, n?o a struct em si
     mapa->num_helicopteros = 0;
     mapa->num_postos_gasolina = 0;
     mapa->tem_ponte = 0;
 
     char linha[LARGURA_MAPA];
-    
+
     for (int y = 0; y < ALTURA_MAPA; y++) {
         if (fgets(linha, sizeof(linha), arquivo) == NULL) {
             for (int x = 0; x < LARGURA_MAPA; x++) {
@@ -77,7 +77,7 @@ int carregar_mapa(const char* nome_arquivo, Mapa* mapa) {
     return 1;
 }
 
-// Função para carregar a próxima fase
+// Fun??o para carregar a pr?xima fase
 int carregar_proxima_fase() {
     fase_atual++;
 
@@ -94,7 +94,7 @@ int carregar_proxima_fase() {
     return carregar_mapa(nome_arquivo, &mapa_atual);
 }
 
-// Função para desenhar o mapa na tela com base no arquivo .txt da fase
+// Fun??o para desenhar o mapa na tela com base no arquivo .txt da fase
 void desenhar_mapa(Mapa* mapa) {
     for (int y = 0; y < ALTURA_MAPA; y++) {
         for (int x = 0; x < LARGURA_MAPA; x++) {
@@ -111,7 +111,7 @@ void desenhar_mapa(Mapa* mapa) {
                 DrawRectangle(screen_x, screen_y, TILE_SIZE, TILE_SIZE, DARKGRAY);
                 DrawRectangleLines(screen_x, screen_y, TILE_SIZE, TILE_SIZE, BLACK);
                 break;
-            case 'X': // Helicóptero
+            case 'X': // Helic?ptero
                 DrawRectangle(screen_x, screen_y, TILE_SIZE, TILE_SIZE, RED);
                 DrawRectangleLines(screen_x, screen_y, TILE_SIZE, TILE_SIZE, BLACK);
                 break;
@@ -128,25 +128,25 @@ void desenhar_mapa(Mapa* mapa) {
     }
 }
 
-// Função para verificar se uma posição é válida para a nave (não é terra)
+// Fun??o para verificar se uma posi??o ? v?lida para a nave (n?o ? terra)
 int posicao_valida_nave(int pos_x, int pos_y, Mapa* mapa) {
     // Converter coordenadas de pixel para coordenadas de tile
     int tile_x = pos_x / TILE_SIZE;
     int tile_y = pos_y / TILE_SIZE;
 
-    // Verificar se está dentro dos limites do mapa
+    // Verificar se est? dentro dos limites do mapa
     if (tile_x < 0 || tile_x >= LARGURA_MAPA || tile_y < 0 || tile_y >= ALTURA_MAPA) {
         return 0;
     }
 
-    // A posição é válida se não for terra ('T')
+    // A posi??o ? v?lida se n?o for terra ('T')
     return mapa->quadradinhos[tile_y][tile_x] != 'T';
 }
 
 int main() {
     char texto[50] = "River Raid INF - Fase 1";
     int POSICAOX_NAVE = LARGURA / 2;
-    int POSICAOY_NAVE = ALTURA - 100; // Começa na parte inferior
+    int POSICAOY_NAVE = ALTURA - 100; // Come?a na parte inferior
     int POSICAOX_MISSIL = -100;
     int POSICAOY_MISSIL = -100;
 
@@ -175,10 +175,10 @@ int main() {
 
     // Ajustando os sprites para 40x40 pixels
     Rectangle NAVE = { 103, 70,  56, 52 }; // Recorte original da nave
-    Rectangle MISSIL = { 0, 70, 40, 50 };  // Recorte original do míssil
+    Rectangle MISSIL = { 0, 70, 40, 50 };  // Recorte original do m?ssil
 
     while (!WindowShouldClose()) {
-        // MOVIMENTO AUTOMÁTICO DA NAVE (PARA CIMA)
+        // MOVIMENTO AUTOM?TICO DA NAVE (PARA CIMA)
         if (!jogo_completo) {
             POSICAOY_NAVE -= velocidade_nave;
 
@@ -208,7 +208,7 @@ int main() {
             POSICAOY_NAVE -= 5;
         }
 
-        // Verificar se a nova posição horizontal é válida (não é terra)
+        // Verificar se a nova posi??o horizontal ? v?lida (n?o ? terra)
         if (posicao_valida_nave(nova_pos_x, POSICAOY_NAVE, &mapa_atual) &&
             posicao_valida_nave(nova_pos_x + TILE_SIZE - 1, POSICAOY_NAVE, &mapa_atual) &&
             posicao_valida_nave(nova_pos_x, POSICAOY_NAVE + TILE_SIZE - 1, &mapa_atual) &&
@@ -221,17 +221,17 @@ int main() {
         if (POSICAOX_NAVE < 0) POSICAOX_NAVE = 0;
         if (POSICAOX_NAVE > LARGURA - TILE_SIZE) POSICAOX_NAVE = LARGURA - TILE_SIZE;
 
-        // Disparar míssil
+        // Disparar m?ssil
         if (IsKeyPressed(KEY_SPACE) && POSICAOY_MISSIL < -50) {
             POSICAOX_MISSIL = POSICAOX_NAVE + (TILE_SIZE / 4);
             POSICAOY_MISSIL = POSICAOY_NAVE - 40;
         }
 
-        // Atualizar míssil
+        // Atualizar m?ssil
         if (POSICAOY_MISSIL > -50) {
             POSICAOY_MISSIL -= 10;
 
-            // Resetar míssil se sair da tela
+            // Resetar m?ssil se sair da tela
             if (POSICAOY_MISSIL < -TILE_SIZE) {
                 POSICAOY_MISSIL = -100;
                 POSICAOX_MISSIL = -100;
@@ -241,30 +241,30 @@ int main() {
         BeginDrawing();
         ClearBackground(RIVER_RAID_BLUE);
 
-        // Desenhar mapa estático
+        // Desenhar mapa est?tico
         desenhar_mapa(&mapa_atual);
 
         // Desenhar elementos do jogo com tamanho 40x40
         if (SPRITES.id != 0) {
             // Desenhar nave redimensionada para 40x40
             Rectangle destNave = { POSICAOX_NAVE, POSICAOY_NAVE, TILE_SIZE, TILE_SIZE };
-            DrawTexturePro(SPRITES, NAVE, destNave, Vector2 { 0, 0 }, 0, WHITE);
+            DrawTexturePro(SPRITES, NAVE, destNave, Vector2{ 0, 0 }, 0, WHITE);
 
-            // Desenhar míssil redimensionado para 20x40
+            // Desenhar m?ssil redimensionado para 20x40
             if (POSICAOY_MISSIL > -50) {
                 Rectangle destMissil = { POSICAOX_MISSIL, POSICAOY_MISSIL, TILE_SIZE / 2, TILE_SIZE };
-                DrawTexturePro(SPRITES, MISSIL, destMissil, Vector2 { 0, 0 }, 0, WHITE);
+                DrawTexturePro(SPRITES, MISSIL, destMissil, Vector2{ 0, 0 }, 0, WHITE);
             }
         }
         else {
-            // Fallback: usar retângulos coloridos com tamanho 40x40
+            // Fallback: usar ret?ngulos coloridos com tamanho 40x40
             DrawRectangle(POSICAOX_NAVE, POSICAOY_NAVE, TILE_SIZE, TILE_SIZE, WHITE);
             if (POSICAOY_MISSIL > -50) {
                 DrawRectangle(POSICAOX_MISSIL, POSICAOY_MISSIL, TILE_SIZE / 2, TILE_SIZE, ORANGE);
             }
         }
 
-        // Desenhar informações da fase e HUD
+        // Desenhar informa??es da fase e HUD
         DrawRectangle(0, 0, LARGURA, 30, Fade(BLACK, 0.7f));
         DrawText(texto, 10, 5, 20, WHITE);
         DrawText(TextFormat("Fase: %d/%d", fase_atual, total_fases), LARGURA - 150, 5, 20, WHITE);
