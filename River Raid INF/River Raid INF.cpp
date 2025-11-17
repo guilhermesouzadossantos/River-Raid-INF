@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <errno.h>
+#include "menu.h"
 
 #define RIVER_RAID_BLUE Color{39, 43, 174, 255}
 #define LARGURA 960
@@ -24,7 +25,7 @@ typedef struct {
 // Variaveis globais
 Mapa mapa_atual;
 int fase_atual = 1;
-int total_fases = 4;
+int total_fases = 10;
 int jogo_completo = 0;
 int velocidade_nave = 3; // Velocidade de movimento automático da nave (talvez aumentar a cada fase?)
 
@@ -177,6 +178,7 @@ int main() {
     Rectangle NAVE = { 103, 70,  56, 52 }; // Recorte original da nave
     Rectangle MISSIL = { 0, 70, 40, 50 };  // Recorte original do m?ssil
 
+    RunMenu();
     while (!WindowShouldClose()) {
         // MOVIMENTO AUTOM?TICO DA NAVE (PARA CIMA)
         if (!jogo_completo) {
