@@ -178,7 +178,6 @@ int main() {
     Rectangle NAVE = { 103, 70,  56, 52 }; // Recorte original da nave
     Rectangle MISSIL = { 0, 70, 40, 50 };  // Recorte original do m?ssil
 
-    RunMenu();
     while (!WindowShouldClose()) {
         // MOVIMENTO AUTOM?TICO DA NAVE (PARA CIMA)
         if (!jogo_completo) {
