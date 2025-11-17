@@ -12,6 +12,7 @@
 #define TILE_SIZE 40
 #define LARGURA_MAPA 48
 #define ALTURA_MAPA 40
+int opcao_menu = 0;
 
 // Estrutura para representar o mapa do jogo
 typedef struct {
@@ -22,12 +23,120 @@ typedef struct {
     int tem_ponte;
 } Mapa;
 
+//Define um novo tipo de variável e o que ela pode representar para usarmos como seletora
+typedef enum TelaJogo {
+    TELA_INICIAL = 0,
+    MENU,
+    NOVO_JOGO,
+    CARREGAR_JOGO,
+    RANKING,
+    PAUSE,
+    SAIR
+}TelaJogo;
+
+
+
 // Variaveis globais
 Mapa mapa_atual;
 int fase_atual = 1;
 int total_fases = 10;
 int jogo_completo = 0;
 int velocidade_nave = 3; // Velocidade de movimento automático da nave (talvez aumentar a cada fase?)
+
+//Função para carregar a Tela inicial antes do menu
+TelaJogo TelaIni(void) {
+    Texture2D SPRITES = LoadTexture("assets/sprites.png");
+    Rectangle NAVE = { 103, 70,  56, 52 };
+    TelaJogo Tela = TELA_INICIAL;
+    int posy = 275;
+    //desenha a tela
+    BeginDrawing();
+    ClearBackground(RIVER_RAID_BLUE);
+    DrawText("RiverINF", 500, 375, 90, YELLOW);
+    DrawText("Pressione ENTER para iniciar", 500, 465, 15, WHITE);
+    Rectangle destNave = { 90, 275, 300, 300 };
+    DrawTexturePro(SPRITES, NAVE, destNave, Vector2{ 0, 0 }, 0, WHITE);
+    //atualiza a mesma
+    if (IsKeyPressed(KEY_ENTER)) {
+        //isso era pra fazer o aviao sair voando mas ficou muito rapido, procurando soluçoes
+       // while (posy != -50) {
+       //     posy -= 5;
+       //     Rectangle destNave = { 90, posy, 300, 300 };
+       //     DrawTexturePro(SPRITES, NAVE, destNave, Vector2{ 0, 0 }, 0, WHITE);
+       // }
+        Tela = MENU;
+    }
+
+    EndDrawing();
+
+    return Tela;
+
+
+}
+
+//Função para fazer o menu
+TelaJogo TelaMenu(void) {
+    TelaJogo Tela;
+    Tela = MENU;
+    const char* opcoes[4] = { "Novo Jogo", "Carregar Jogo", "Ranking", "Sair" };
+    int total_opcoes = 4;
+
+    if (IsKeyPressed(KEY_DOWN)) {
+        opcao_menu++;
+        if (opcao_menu >= total_opcoes) opcao_menu = 0;
+    }
+    if (IsKeyPressed(KEY_UP)) {
+        opcao_menu--;
+        if (opcao_menu < 0) opcao_menu = total_opcoes - 1;
+    }
+    //Nesse caso como a função é tipada fiz um switch case pra retornar a nova tela que o jogo vai entrar
+    if (IsKeyPressed(KEY_ENTER)) {
+        switch (opcao_menu) {
+        case 0:
+            Tela = NOVO_JOGO;
+            break;
+        case 1:
+            Tela = CARREGAR_JOGO;
+            break;
+        case 2:
+            Tela = RANKING;
+            break;
+        case 3:
+            Tela = SAIR;
+            break;
+
+        }
+    }
+
+    //Desenho
+    BeginDrawing();
+    ClearBackground(RIVER_RAID_BLUE);
+    DrawText("RiverINF", 500, 375, 90, YELLOW);
+    DrawText("Pressione ENTER para selecionar", 500, 465, 15, WHITE);
+
+    DrawText(opcoes[0], 90, 325 + 0 * 60, 40, YELLOW);
+    DrawText(opcoes[1], 90, 325 + 1 * 60, 40, YELLOW);
+    DrawText(opcoes[2], 90, 325 + 2 * 60, 40, YELLOW);
+    DrawText(opcoes[3], 90, 325 + 3 * 60, 40, YELLOW);
+
+    for (int i = 0; i < total_opcoes; i++) {
+        Color cor;
+        if (i == opcao_menu) {
+            cor = YELLOW;
+        }
+        else
+            cor = RIVER_RAID_BLUE;
+
+        if (i == opcao_menu) {
+            DrawRectangle(60, (320 + i * 60) + 20, 10, 10, YELLOW);
+        }
+    }
+    EndDrawing();
+
+    return Tela;
+
+}       
+
 
 // Função para carregar mapa do arquivo (errno_t para n?o dar erro ...)
 int carregar_mapa(const char* nome_arquivo, Mapa* mapa) {
@@ -150,6 +259,7 @@ int main() {
     int POSICAOY_NAVE = ALTURA - 100; // Come?a na parte inferior
     int POSICAOX_MISSIL = -100;
     int POSICAOY_MISSIL = -100;
+    TelaJogo TelaAgora = TELA_INICIAL;
 
     InitWindow(LARGURA, ALTURA, "River Raid INF");
     SetTargetFPS(60);
@@ -177,107 +287,119 @@ int main() {
     // Ajustando os sprites para 40x40 pixels
     Rectangle NAVE = { 103, 70,  56, 52 }; // Recorte original da nave
     Rectangle MISSIL = { 0, 70, 40, 50 };  // Recorte original do m?ssil
+   
 
     while (!WindowShouldClose()) {
-        // MOVIMENTO AUTOM?TICO DA NAVE (PARA CIMA)
-        if (!jogo_completo) {
-            POSICAOY_NAVE -= velocidade_nave;
+        switch (TelaAgora) {
+            case TELA_INICIAL:
+                TelaAgora = TelaIni();
+                break;
+            case MENU:
+                TelaAgora = TelaMenu();
+                break;
+            case NOVO_JOGO:
+            // MOVIMENTO AUTOM?TICO DA NAVE (PARA CIMA)
+           
+            if (!jogo_completo) {
+                POSICAOY_NAVE -= velocidade_nave;
 
-            // Verificar se a nave chegou ao topo (final da fase)
-            if (POSICAOY_NAVE <= -TILE_SIZE) {
-                if (carregar_proxima_fase()) {
-                    // Reposicionar nave na base para a nova fase
-                    POSICAOY_NAVE = ALTURA;
-                    sprintf_s(texto, sizeof(texto), "River Raid INF - Fase %d", fase_atual);
+                // Verificar se a nave chegou ao topo (final da fase)
+                if (POSICAOY_NAVE <= -TILE_SIZE) {
+                    if (carregar_proxima_fase()) {
+                        // Reposicionar nave na base para a nova fase
+                        POSICAOY_NAVE = ALTURA;
+                        sprintf_s(texto, sizeof(texto), "River Raid INF - Fase %d", fase_atual);
+                    }
                 }
             }
-        }
 
-        // Controles da nave 
-        int nova_pos_x = POSICAOX_NAVE;
+            // Controles da nave 
+            int nova_pos_x = POSICAOX_NAVE;
 
-        if (IsKeyDown(KEY_RIGHT)) {
-            nova_pos_x += 5;
-        }
-        if (IsKeyDown(KEY_LEFT)) {
-            nova_pos_x -= 5;
-        }
-        if (IsKeyDown(KEY_DOWN)) {
-            POSICAOY_NAVE += 2;
-        }
-        if (IsKeyDown(KEY_UP)) {
-            POSICAOY_NAVE -= 5;
-        }
-
-        // Verificar se a nova posi??o horizontal ? v?lida (n?o ? terra)
-        if (posicao_valida_nave(nova_pos_x, POSICAOY_NAVE, &mapa_atual) &&
-            posicao_valida_nave(nova_pos_x + TILE_SIZE - 1, POSICAOY_NAVE, &mapa_atual) &&
-            posicao_valida_nave(nova_pos_x, POSICAOY_NAVE + TILE_SIZE - 1, &mapa_atual) &&
-            posicao_valida_nave(nova_pos_x + TILE_SIZE - 1, POSICAOY_NAVE + TILE_SIZE - 1, &mapa_atual)) {
-
-            POSICAOX_NAVE = nova_pos_x;
-        }
-
-        // Limites da tela - apenas horizontal
-        if (POSICAOX_NAVE < 0) POSICAOX_NAVE = 0;
-        if (POSICAOX_NAVE > LARGURA - TILE_SIZE) POSICAOX_NAVE = LARGURA - TILE_SIZE;
-
-        // Disparar m?ssil
-        if (IsKeyPressed(KEY_SPACE) && POSICAOY_MISSIL < -50) {
-            POSICAOX_MISSIL = POSICAOX_NAVE + (TILE_SIZE / 4);
-            POSICAOY_MISSIL = POSICAOY_NAVE - 40;
-        }
-
-        // Atualizar m?ssil
-        if (POSICAOY_MISSIL > -50) {
-            POSICAOY_MISSIL -= 10;
-
-            // Resetar m?ssil se sair da tela
-            if (POSICAOY_MISSIL < -TILE_SIZE) {
-                POSICAOY_MISSIL = -100;
-                POSICAOX_MISSIL = -100;
+            if (IsKeyDown(KEY_RIGHT)) {
+                nova_pos_x += 5;
             }
-        }
+            if (IsKeyDown(KEY_LEFT)) {
+                nova_pos_x -= 5;
+            }
+            if (IsKeyDown(KEY_DOWN)) {
+                POSICAOY_NAVE += 2;
+            }
+            if (IsKeyDown(KEY_UP)) {
+                POSICAOY_NAVE -= 5;
+            }
 
-        BeginDrawing();
-        ClearBackground(RIVER_RAID_BLUE);
+            // Verificar se a nova posi??o horizontal ? v?lida (n?o ? terra)
+            if (posicao_valida_nave(nova_pos_x, POSICAOY_NAVE, &mapa_atual) &&
+                posicao_valida_nave(nova_pos_x + TILE_SIZE - 1, POSICAOY_NAVE, &mapa_atual) &&
+                posicao_valida_nave(nova_pos_x, POSICAOY_NAVE + TILE_SIZE - 1, &mapa_atual) &&
+                posicao_valida_nave(nova_pos_x + TILE_SIZE - 1, POSICAOY_NAVE + TILE_SIZE - 1, &mapa_atual)) {
 
-        // Desenhar mapa est?tico
-        desenhar_mapa(&mapa_atual);
+                POSICAOX_NAVE = nova_pos_x;
+            }
 
-        // Desenhar elementos do jogo com tamanho 40x40
-        if (SPRITES.id != 0) {
-            // Desenhar nave redimensionada para 40x40
-            Rectangle destNave = { POSICAOX_NAVE, POSICAOY_NAVE, TILE_SIZE, TILE_SIZE };
-            DrawTexturePro(SPRITES, NAVE, destNave, Vector2{ 0, 0 }, 0, WHITE);
+            // Limites da tela - apenas horizontal
+            if (POSICAOX_NAVE < 0) POSICAOX_NAVE = 0;
+            if (POSICAOX_NAVE > LARGURA - TILE_SIZE) POSICAOX_NAVE = LARGURA - TILE_SIZE;
 
-            // Desenhar m?ssil redimensionado para 20x40
+            // Disparar m?ssil
+            if (IsKeyPressed(KEY_SPACE) && POSICAOY_MISSIL < -50) {
+                POSICAOX_MISSIL = POSICAOX_NAVE + (TILE_SIZE / 4);
+                POSICAOY_MISSIL = POSICAOY_NAVE - 40;
+            }
+
+            // Atualizar m?ssil
             if (POSICAOY_MISSIL > -50) {
-                Rectangle destMissil = { POSICAOX_MISSIL, POSICAOY_MISSIL, TILE_SIZE / 2, TILE_SIZE };
-                DrawTexturePro(SPRITES, MISSIL, destMissil, Vector2{ 0, 0 }, 0, WHITE);
+                POSICAOY_MISSIL -= 10;
+
+                // Resetar m?ssil se sair da tela
+                if (POSICAOY_MISSIL < -TILE_SIZE) {
+                    POSICAOY_MISSIL = -100;
+                    POSICAOX_MISSIL = -100;
+                }
             }
-        }
-        else {
-            // Fallback: usar ret?ngulos coloridos com tamanho 40x40
-            DrawRectangle(POSICAOX_NAVE, POSICAOY_NAVE, TILE_SIZE, TILE_SIZE, WHITE);
-            if (POSICAOY_MISSIL > -50) {
-                DrawRectangle(POSICAOX_MISSIL, POSICAOY_MISSIL, TILE_SIZE / 2, TILE_SIZE, ORANGE);
+
+            BeginDrawing();
+            ClearBackground(RIVER_RAID_BLUE);
+
+            // Desenhar mapa est?tico
+            desenhar_mapa(&mapa_atual);
+
+            // Desenhar elementos do jogo com tamanho 40x40
+            if (SPRITES.id != 0) {
+                // Desenhar nave redimensionada para 40x40
+                Rectangle destNave = { POSICAOX_NAVE, POSICAOY_NAVE, TILE_SIZE, TILE_SIZE };
+                DrawTexturePro(SPRITES, NAVE, destNave, Vector2{ 0, 0 }, 0, WHITE);
+
+                // Desenhar m?ssil redimensionado para 20x40
+                if (POSICAOY_MISSIL > -50) {
+                    Rectangle destMissil = { POSICAOX_MISSIL, POSICAOY_MISSIL, TILE_SIZE / 2, TILE_SIZE };
+                    DrawTexturePro(SPRITES, MISSIL, destMissil, Vector2{ 0, 0 }, 0, WHITE);
+                }
             }
+            else {
+                // Fallback: usar ret?ngulos coloridos com tamanho 40x40
+                DrawRectangle(POSICAOX_NAVE, POSICAOY_NAVE, TILE_SIZE, TILE_SIZE, WHITE);
+                if (POSICAOY_MISSIL > -50) {
+                    DrawRectangle(POSICAOX_MISSIL, POSICAOY_MISSIL, TILE_SIZE / 2, TILE_SIZE, ORANGE);
+                }
+            }
+
+            // Desenhar informa??es da fase e HUD
+            DrawRectangle(0, 0, LARGURA, 30, Fade(BLACK, 0.7f));
+            DrawText(texto, 10, 5, 20, WHITE);
+            DrawText(TextFormat("Fase: %d/%d", fase_atual, total_fases), LARGURA - 150, 5, 20, WHITE);
+
+            // Mostrar mensagem de jogo completo
+            if (jogo_completo) {
+                DrawRectangle(LARGURA / 2 - 150, ALTURA / 2 - 50, 300, 100, Fade(BLACK, 0.8f));
+                DrawText("JOGO COMPLETO!", LARGURA / 2 - 120, ALTURA / 2 - 30, 30, GREEN);
+                DrawText("Pressione ESC para sair", LARGURA / 2 - 120, ALTURA / 2 + 10, 20, WHITE);
+            }
+
+            EndDrawing();
+            break;
         }
-
-        // Desenhar informa??es da fase e HUD
-        DrawRectangle(0, 0, LARGURA, 30, Fade(BLACK, 0.7f));
-        DrawText(texto, 10, 5, 20, WHITE);
-        DrawText(TextFormat("Fase: %d/%d", fase_atual, total_fases), LARGURA - 150, 5, 20, WHITE);
-
-        // Mostrar mensagem de jogo completo
-        if (jogo_completo) {
-            DrawRectangle(LARGURA / 2 - 150, ALTURA / 2 - 50, 300, 100, Fade(BLACK, 0.8f));
-            DrawText("JOGO COMPLETO!", LARGURA / 2 - 120, ALTURA / 2 - 30, 30, GREEN);
-            DrawText("Pressione ESC para sair", LARGURA / 2 - 120, ALTURA / 2 + 10, 20, WHITE);
-        }
-
-        EndDrawing();
     }
 
     if (SPRITES.id != 0) {
