@@ -13,6 +13,7 @@
 #define LARGURA_MAPA 48
 #define ALTURA_MAPA 40
 int opcao_menu = 0;
+int op_saida_menu = 0;
 
 // Estrutura para representar o mapa do jogo
 typedef struct {
@@ -23,7 +24,7 @@ typedef struct {
     int tem_ponte;
 } Mapa;
 
-//Define um novo tipo de variável e o que ela pode representar para usarmos como seletora
+//Define um novo tipo de vari?vel e o que ela pode representar para usarmos como seletora
 typedef enum TelaJogo {
     TELA_INICIAL = 0,
     MENU,
@@ -31,7 +32,9 @@ typedef enum TelaJogo {
     CARREGAR_JOGO,
     RANKING,
     PAUSE,
-    SAIR
+    SAIR,
+    SALVARESAIR,
+    SAIRDEFINITIVO
 }TelaJogo;
 
 
@@ -41,9 +44,9 @@ Mapa mapa_atual;
 int fase_atual = 1;
 int total_fases = 10;
 int jogo_completo = 0;
-int velocidade_nave = 3; // Velocidade de movimento automático da nave (talvez aumentar a cada fase?)
+int velocidade_nave = 3; // Velocidade de movimento autom?tico da nave (talvez aumentar a cada fase?)
 
-//Função para carregar a Tela inicial antes do menu
+//Fun??o para carregar a Tela inicial antes do menu
 TelaJogo TelaIni(void) {
     Texture2D SPRITES = LoadTexture("assets/sprites.png");
     Rectangle NAVE = { 103, 70,  56, 52 };
@@ -58,7 +61,7 @@ TelaJogo TelaIni(void) {
     DrawTexturePro(SPRITES, NAVE, destNave, Vector2{ 0, 0 }, 0, WHITE);
     //atualiza a mesma
     if (IsKeyPressed(KEY_ENTER)) {
-        //isso era pra fazer o aviao sair voando mas ficou muito rapido, procurando soluçoes
+        //isso era pra fazer o aviao sair voando mas ficou muito rapido, procurando solu?oes
        // while (posy != -50) {
        //     posy -= 5;
        //     Rectangle destNave = { 90, posy, 300, 300 };
@@ -74,7 +77,7 @@ TelaJogo TelaIni(void) {
 
 }
 
-//Função para fazer o menu
+//Fun??o para fazer o menu
 TelaJogo TelaMenu(void) {
     TelaJogo Tela;
     Tela = MENU;
@@ -89,7 +92,7 @@ TelaJogo TelaMenu(void) {
         opcao_menu--;
         if (opcao_menu < 0) opcao_menu = total_opcoes - 1;
     }
-    //Nesse caso como a função é tipada fiz um switch case pra retornar a nova tela que o jogo vai entrar
+    //Nesse caso como a fun??o ? tipada fiz um switch case pra retornar a nova tela que o jogo vai entrar
     if (IsKeyPressed(KEY_ENTER)) {
         switch (opcao_menu) {
         case 0:
@@ -114,19 +117,13 @@ TelaJogo TelaMenu(void) {
     DrawText("RiverINF", 500, 375, 90, YELLOW);
     DrawText("Pressione ENTER para selecionar", 500, 465, 15, WHITE);
 
-    DrawText(opcoes[0], 90, 325 + 0 * 60, 40, YELLOW);
-    DrawText(opcoes[1], 90, 325 + 1 * 60, 40, YELLOW);
-    DrawText(opcoes[2], 90, 325 + 2 * 60, 40, YELLOW);
-    DrawText(opcoes[3], 90, 325 + 3 * 60, 40, YELLOW);
+    DrawText(opcoes[0], 90, 325, 40, YELLOW);
+    DrawText(opcoes[1], 90, 325 + 60, 40, YELLOW);
+    DrawText(opcoes[2], 90, 325 + 120, 40, YELLOW);
+    DrawText(opcoes[3], 90, 325 + 180, 40, YELLOW);
 
     for (int i = 0; i < total_opcoes; i++) {
-        Color cor;
-        if (i == opcao_menu) {
-            cor = YELLOW;
-        }
-        else
-            cor = RIVER_RAID_BLUE;
-
+        
         if (i == opcao_menu) {
             DrawRectangle(60, (320 + i * 60) + 20, 10, 10, YELLOW);
         }
@@ -135,10 +132,52 @@ TelaJogo TelaMenu(void) {
 
     return Tela;
 
-}       
+}
+
+//Função para tela de saida no menu
+TelaJogo TelaSaida(void) {
+    TelaJogo Tela;
+    Tela = SAIR;
+    int ops_saida = 2;
+    if (IsKeyPressed(KEY_UP)) {
+        op_saida_menu--;
+        if (op_saida_menu < 0) op_saida_menu = ops_saida - 1;
+    }
+    if (IsKeyPressed(KEY_DOWN)) {
+        op_saida_menu++;
+        if (op_saida_menu >= ops_saida) op_saida_menu = 0;
+    }
+
+    if (IsKeyPressed(KEY_ENTER)) {
+        switch (op_saida_menu) {
+        case 0:
+            Tela = SAIRDEFINITIVO;
+            break;
+        case 1:
+            Tela = MENU;
+            break;
+        }
+    }
+
+    BeginDrawing();
+    ClearBackground(RIVER_RAID_BLUE);
+    DrawText("Tem certeza?", 265, 275, 60, YELLOW);
+    DrawText("Sim, sair", 380, 400, 30, YELLOW);
+    DrawText("Voltar ao menu", 380, 400 + 60, 30, YELLOW);
+
+    for (int i = 0; i < ops_saida; i++) {
+       
+        if (i == op_saida_menu) {
+            DrawRectangle(360, (400 + i * 60) + 10, 8, 8, YELLOW);
+        }
+    }
+    EndDrawing();
 
 
-// Função para carregar mapa do arquivo (errno_t para n?o dar erro ...)
+    return Tela;
+}
+
+// Fun??o para carregar mapa do arquivo (errno_t para n?o dar erro ...)
 int carregar_mapa(const char* nome_arquivo, Mapa* mapa) {
     FILE* arquivo = NULL;
     errno_t err = fopen_s(&arquivo, nome_arquivo, "r");
@@ -287,19 +326,33 @@ int main() {
     // Ajustando os sprites para 40x40 pixels
     Rectangle NAVE = { 103, 70,  56, 52 }; // Recorte original da nave
     Rectangle MISSIL = { 0, 70, 40, 50 };  // Recorte original do m?ssil
-   
+
 
     while (!WindowShouldClose()) {
         switch (TelaAgora) {
-            case TELA_INICIAL:
-                TelaAgora = TelaIni();
-                break;
-            case MENU:
-                TelaAgora = TelaMenu();
-                break;
-            case NOVO_JOGO:
-            // MOVIMENTO AUTOM?TICO DA NAVE (PARA CIMA)
+        case TELA_INICIAL:
+            printf("Tela inicial rodando");
+            TelaAgora = TelaIni();
+            break;
+        case MENU:
+            TelaAgora = TelaMenu();
+            break;
+        case CARREGAR_JOGO:
+            TelaAgora = TelaIni();
+            break;
+        case RANKING:
+            TelaAgora = TelaIni();
+            break;
+        case SAIR:
+            TelaAgora = TelaSaida();
+            break;
+        case SAIRDEFINITIVO:
+            //logica pra fechar a janela sem o close window
            
+            break;
+        case NOVO_JOGO:
+            // MOVIMENTO AUTOM?TICO DA NAVE (PARA CIMA)
+            printf("Novo jogo rodando");
             if (!jogo_completo) {
                 POSICAOY_NAVE -= velocidade_nave;
 
@@ -328,6 +381,7 @@ int main() {
             if (IsKeyDown(KEY_UP)) {
                 POSICAOY_NAVE -= 5;
             }
+
 
             // Verificar se a nova posi??o horizontal ? v?lida (n?o ? terra)
             if (posicao_valida_nave(nova_pos_x, POSICAOY_NAVE, &mapa_atual) &&
