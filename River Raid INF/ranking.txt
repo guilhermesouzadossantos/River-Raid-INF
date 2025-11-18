@@ -20,3 +20,7 @@ Player 100
 Player 200
 Player 200
 Player 200
+Player 0
+Player 0
+Player 0
+Player 300

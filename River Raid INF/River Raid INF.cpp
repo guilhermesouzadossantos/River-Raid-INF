@@ -164,7 +164,14 @@ TelaJogo TelaGameOver(void) {
 //Função para carregar a Tela inicial antes do menu
 TelaJogo TelaIni(void) {
     Texture2D SPRITES = LoadTexture("assets/sprites.png");
+
     Rectangle NAVE = { 103, 70,  56, 52 };
+    Rectangle MISSIL = { 0, 70, 40, 50 };
+    Rectangle HELICOPTERO = { 8, 184, 65, 44 };
+    Rectangle NAVIO = { 12, 232, 133, 60 };
+    Rectangle GAS = { 530, 74, 32, 80 };
+    Rectangle PONTE = { 350, 10, 250, 100 };
+
     TelaJogo Tela = TELA_INICIAL;
     int posy = 275;
     //desenha a tela
@@ -400,54 +407,41 @@ int carregar_proxima_fase() {
 // Funcao para desenhar o mapa na tela com base no arquivo .txt da fase
 void desenhar_mapa(Mapa* mapa, Texture2D sprites) {
 
-    Rectangle NAVE = { 103, 70,  56, 52 };
 
-    Texture2D SPRITES = LoadTexture("assets/sprites.png");
-    Rectangle SPR_HELI = { 20, 190, 50, 40 };
-    Rectangle SPR_NAVIO_INI = { 12, 32, 133, 60 }; 
-    Rectangle SPR_GAS = { 200, 74, 32, 80 }; 
-    Rectangle SPR_PONTE = { 150, 10, 250, 100 };
+    Rectangle NAVE = { 103, 70, 56, 52 };
+    Rectangle MISSIL = { 0, 70, 40, 50 };
+    Rectangle HELICOPTERO = { 8, 184, 65, 44 };
+    Rectangle NAVIO = { 12, 232, 133, 60 };
+    Rectangle GAS = { 609, 60, 60, 100 };
+    Rectangle PONTE = { 685, 64, 255, 95 };
 
     for (int y = 0; y < ALTURA_MAPA; y++) {
         for (int x = 0; x < LARGURA_MAPA; x++) {
-
             char tile = mapa->quadradinhos[y][x];
             int screen_x = x * TILE_SIZE;
             int screen_y = y * TILE_SIZE;
-
-            Rectangle destino = { screen_x, screen_y, TILE_SIZE, TILE_SIZE };
+            Rectangle destino = { (float)screen_x, (float)screen_y, TILE_SIZE, TILE_SIZE };
+            Rectangle NAVIO_destino = { (float)screen_x, (float)screen_y, TILE_SIZE, TILE_SIZE };
 
             switch (tile) {
-
             case 'T':   // TERRA
                 DrawRectangle(screen_x, screen_y, TILE_SIZE, TILE_SIZE, DARKGREEN);
                 break;
-
-            case 'N':   // NAVIO INIMIGO
-                DrawTexturePro(SPRITES, SPR_NAVIO_INI, destino, Vector2{ 0, 0 }, 0, WHITE);
+            case 'N': DrawTexturePro(sprites, NAVIO, NAVIO_destino, Vector2{ 0, 0 }, 0, WHITE);
                 break;
-
-            case 'X':   // HELICÓPTERO
-                DrawTexturePro(SPRITES, SPR_HELI, destino, Vector2{ 0, 0 }, 0, WHITE);
+            case 'X': DrawTexturePro(sprites, HELICOPTERO, destino, Vector2{ 0, 0 }, 0, WHITE); 
                 break;
-
-            case 'G':   // GASOLINA
-                DrawTexturePro(SPRITES, SPR_GAS, destino, Vector2{ 0, 0 }, 0, WHITE);
+            case 'G': DrawTexturePro(sprites, GAS, destino, Vector2{ 0, 0 }, 0, WHITE);
                 break;
-
-            case 'P':   // PONTE
-                DrawTexturePro(SPRITES, SPR_PONTE, destino, Vector2{ 0, 0 }, 0, WHITE);
+            case 'P': DrawTexturePro(sprites, PONTE, destino, Vector2{ 0, 0 }, 0, WHITE);
                 break;
-
-            case ' ':   // ÁGUA
+            case ' ':
             default:
                 DrawRectangle(destino.x, destino.y, TILE_SIZE, TILE_SIZE, RIVER_RAID_BLUE);
                 break;
             }
         }
     }
-
-    UnloadTexture(SPRITES); 
 }
 
 // Funcao para verificar se uma posicao e valida para a nave (nao e terra)
@@ -566,8 +560,8 @@ int main() {
     }
 
     // Ajustando os sprites para 40x40 pixels
-    Rectangle NAVE = { 103, 70,  56, 52 }; 
-    Rectangle MISSIL = { 0, 70, 40, 50 }; 
+    Rectangle NAVE = { 103, 70,  56, 52 };
+    Rectangle MISSIL = { 0, 70, 40, 50 };
 
     // Variável para detectar transições de tela (para inicializar apenas quando entrar em NOVO_JOGO)
     TelaJogo TelaAnterior = (TelaJogo)-1;
@@ -580,7 +574,6 @@ int main() {
             // mas se houver outro caminho que setar NOVO_JOGO, garantir estado limpo:
             if (TelaAgora == NOVO_JOGO) {
                 // garantia adicional: se o mapa não for da fase atual, recarregar
-                // (mantém comportamento seguro)
                 // atualizar texto
                 sprintf_s(texto, sizeof(texto), "River Raid INF - Fase %d", fase_atual);
 
