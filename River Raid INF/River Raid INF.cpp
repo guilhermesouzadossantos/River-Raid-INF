@@ -34,10 +34,24 @@ typedef enum TelaJogo {
     PAUSE,
     SAIR,
     SALVARESAIR,
+    SALVAR,
     SAIRDEFINITIVO
 }TelaJogo;
 
+//struct pra iniciar o jogo e pra salvar e carregar o jogo
+typedef struct {
+    char nome[50];
+    int vidas;
+    int combustivel;
+    int nivel;
+    int score;
+}Jogador;
 
+//struct pra salvar no final do jogo e usar o ranking
+typedef struct {
+    char nome[50];
+    int score;
+}JogadorFinal;
 
 // Variaveis globais
 Mapa mapa_atual;
@@ -45,6 +59,7 @@ int fase_atual = 1;
 int total_fases = 10;
 int jogo_completo = 0;
 int velocidade_nave = 3; // Velocidade de movimento autom?tico da nave (talvez aumentar a cada fase?)
+
 
 //Fun??o para carregar a Tela inicial antes do menu
 TelaJogo TelaIni(void) {
@@ -167,6 +182,49 @@ TelaJogo TelaSaida(void) {
 
     for (int i = 0; i < ops_saida; i++) {
        
+        if (i == op_saida_menu) {
+            DrawRectangle(360, (400 + i * 60) + 10, 8, 8, YELLOW);
+        }
+    }
+    EndDrawing();
+
+
+    return Tela;
+}
+
+//Função para quando pausa no meio do jogo
+TelaJogo TelaSalvareSair(void) {
+    TelaJogo Tela;
+    Tela = SALVARESAIR;
+    int ops_saida = 2;
+    if (IsKeyPressed(KEY_UP)) {
+        op_saida_menu--;
+        if (op_saida_menu < 0) op_saida_menu = ops_saida - 1;
+    }
+    if (IsKeyPressed(KEY_DOWN)) {
+        op_saida_menu++;
+        if (op_saida_menu >= ops_saida) op_saida_menu = 0;
+    }
+
+    if (IsKeyPressed(KEY_ENTER)) {
+        switch (op_saida_menu) {
+        case 0:
+            Tela = NOVO_JOGO;
+            break;
+        case 1:
+            Tela = SALVAR;
+            break;
+        }
+    }
+
+    BeginDrawing();
+    ClearBackground(RIVER_RAID_BLUE);
+    DrawText("O que deseja?", 265, 275, 60, YELLOW);
+    DrawText("Voltar ao jogo", 380, 400, 30, YELLOW);
+    DrawText("Salvar e sair", 380, 400 + 60, 30, YELLOW);
+
+    for (int i = 0; i < ops_saida; i++) {
+
         if (i == op_saida_menu) {
             DrawRectangle(360, (400 + i * 60) + 10, 8, 8, YELLOW);
         }
@@ -335,21 +393,33 @@ int main() {
             TelaAgora = TelaIni();
             break;
         case MENU:
+            //tela de menu
             TelaAgora = TelaMenu();
             break;
         case CARREGAR_JOGO:
+            //em andamento só está assim para o teste dos botoes
             TelaAgora = TelaIni();
             break;
         case RANKING:
+            //em andamento só está assim para o teste dos botoes
             TelaAgora = TelaIni();
             break;
         case SAIR:
+            //Tela de sair que vem do menu
             TelaAgora = TelaSaida();
             break;
         case SAIRDEFINITIVO:
-            //logica pra fechar a janela sem o close window
+            //logica pra fechar a janela, sempre que for necessário fechar a janela será usado SAIRDEFINITIVO
             CloseWindow();
             return 1;
+        case SALVARESAIR:
+            //tela para salvar
+            TelaAgora = TelaSalvareSair();
+            break;
+        case SALVAR:
+            //em andamento só está assim para o teste dos botoes
+            TelaAgora = TelaIni();
+            break;
         case NOVO_JOGO:
             // MOVIMENTO AUTOM?TICO DA NAVE (PARA CIMA)
             printf("Novo jogo rodando");
@@ -380,6 +450,9 @@ int main() {
             }
             if (IsKeyDown(KEY_UP)) {
                 POSICAOY_NAVE -= 5;
+            }
+            if (IsKeyPressed(KEY_BACKSPACE)) {
+                TelaAgora = SALVARESAIR;
             }
 
 

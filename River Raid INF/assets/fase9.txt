@@ -11,10 +11,10 @@ TTTTTTTT         TTTTTTT
 TTTTTTT          TTTTTTT
 TTTTT          TTTTTTTTT
 TTTTT       N    TTTTTTT
-TTTTT  X            TTTT
-TTTTT               TTTT
-TTTTTTT GGGG     TTTTTTT
-TTTTT            TTTTTTT
+TTTTT   G           TTTT
+TTTTT   G           TTTT
+TTTTTTT G        TTTTTTT
+TTTTT   G        TTTTTTT
 TTTTT            TTTTTTT
 TTTTT       X    TTTTTTT
 TTTTT            TTTTTTT

@@ -3,10 +3,10 @@ TTTTT            TTTTTTT
 TTTTT            TTTTTTT
 TTTTT     N      TTTTTTT
 TTTTT            TTTTTTT
-TTTTT            TTTTTTT
-TTTTT            TTTTTTT
-TTTTT   GGGG     TTTTTTT
-TTTTT            TTTTTTT
+TTTTT   G        TTTTTTT
+TTTTT   G        TTTTTTT
+TTTTT   G        TTTTTTT
+TTTTT   G        TTTTTTT
 TTTTT            TTTTTTT
 TTTTT      X     TTTTTTT
 TTTTT            TTTTTTT

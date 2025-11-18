@@ -5,10 +5,10 @@ TTTTT           TTTTTTTT
 TTTTT   X        TTTTTTT
 TTTTTT            TTTTTT
 TTTTT             TTTTTT
-TTTTTT GGGG        TTTTT
-TTTTT             TTTTTT
-TTTTT      N      TTTTTT
-TTTTTT           TTTTTTT
+TTTTTT G           TTTTT
+TTTTT  G          TTTTTT
+TTTTT  G   N      TTTTTT
+TTTTTT G         TTTTTTT
 TTTTT             TTTTTT
 TTTTT     X        TTTTT
 TTTTT            TTTTTTT
