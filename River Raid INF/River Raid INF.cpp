@@ -348,8 +348,8 @@ int main() {
             break;
         case SAIRDEFINITIVO:
             //logica pra fechar a janela sem o close window
-           
-            break;
+            CloseWindow();
+            return 1;
         case NOVO_JOGO:
             // MOVIMENTO AUTOM?TICO DA NAVE (PARA CIMA)
             printf("Novo jogo rodando");
