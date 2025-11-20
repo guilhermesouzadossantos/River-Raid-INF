@@ -63,6 +63,8 @@ int total_fases = 10;
 int jogo_completo = 0;
 int velocidade_nave = 3; // Velocidade de movimento autom?tico da nave (talvez aumentar a cada fase?)
 int score_atual = 0;
+double ultimo_movimento_helicopteros = 0.0;
+double intervalo_movimento_helicopteros = 0.5; // Move a cada 0.5 segundos
 
 // Estado (agora global para permitir reset)
 int POSICAOX_NAVE;
@@ -77,22 +79,39 @@ void resetar_jogo(void);
 
 
 int colisao_nave(Mapa* mapa, int nave_x, int nave_y, int tamanho) {
+    // Verifica se qualquer parte da nave está acima da tela
+    if (nave_y + tamanho <= 0) {
+        return 0; // Nave completamente acima da tela - transição de fase
+    }
 
-    // Lista de tiles que contam como colisão
+    int verificar_colisao = 1;
+    int y_inicio = 0;
+
+    if (nave_y < 0) {
+        // Nave está parcialmente acima da tela - só verifica a parte visível
+        y_inicio = -nave_y; // Começa a verificar a partir da parte visível
+    }
+
     char objetos_colisao[] = { 'T', 'N', 'X' };
     int total_objetos = sizeof(objetos_colisao) / sizeof(objetos_colisao[0]);
 
-    // Verifica os 4 cantos da nave
+    // Verifica os 4 cantos da nave (apenas a parte visível se estiver saindo)
     int pontos_x[4] = { nave_x, nave_x + tamanho - 1, nave_x, nave_x + tamanho - 1 };
-    int pontos_y[4] = { nave_y, nave_y, nave_y + tamanho - 1, nave_y + tamanho - 1 };
+    int pontos_y[4] = { nave_y + y_inicio, nave_y + y_inicio, nave_y + tamanho - 1, nave_y + tamanho - 1 };
 
     for (int i = 0; i < 4; i++) {
         int tile_x = pontos_x[i] / TILE_SIZE;
         int tile_y = pontos_y[i] / TILE_SIZE;
 
         // Verifica se está dentro do mapa
-        if (tile_x < 0 || tile_x >= LARGURA_MAPA || tile_y < 0 || tile_y >= ALTURA_MAPA)
-            return 1; // bateu fora do mapa ? game over
+        if (tile_x < 0 || tile_x >= LARGURA_MAPA || tile_y < 0 || tile_y >= ALTURA_MAPA) {
+            // Se está fora do mapa mas pela parte inferior ou lateral, conta como colisão
+            if (tile_y >= ALTURA_MAPA || tile_x < 0 || tile_x >= LARGURA_MAPA) {
+                return 1; // bateu fora do mapa game over
+            }
+            // Se está acima do mapa (tile_y < 0), ignora porque é transição de fase
+            continue;
+        }
 
         char tile = mapa->quadradinhos[tile_y][tile_x];
 
@@ -557,6 +576,42 @@ void resetar_jogo(void) {
     }
 }
 
+void mover_helicopteros(Mapa* mapa) {
+    double tempo_atual = GetTime();
+
+    // Verifica se é hora de mover os helicópteros
+    if (tempo_atual - ultimo_movimento_helicopteros < intervalo_movimento_helicopteros) {
+        return;
+    }
+
+    ultimo_movimento_helicopteros = tempo_atual;
+
+    // Percorre todo o mapa procurando por helicópteros
+    for (int y = 0; y < ALTURA_MAPA; y++) {
+        for (int x = 0; x < LARGURA_MAPA; x++) {
+            if (mapa->quadradinhos[y][x] == 'X') {
+                // Gera uma direção aleatória: -1 (esquerda), 0 (parado), 1 (direita)
+                int direcao = GetRandomValue(-1, 1);
+
+                if (direcao == 0) {
+                    continue; // Fica parado neste frame
+                }
+
+                int novo_x = x + direcao;
+
+                // Verifica se a nova posição é válida
+                if (novo_x >= 0 && novo_x < LARGURA_MAPA &&
+                    mapa->quadradinhos[y][novo_x] == ' ') {
+
+                    // Move o helicóptero
+                    mapa->quadradinhos[y][x] = ' ';
+                    mapa->quadradinhos[y][novo_x] = 'X';
+                }
+            }
+        }
+    }
+}
+
 // main
 int main() {
     // inicializar estado (em caso de entrar direto em NOVO_JOGO)
@@ -658,9 +713,11 @@ int main() {
             if (!jogo_completo) {
                 POSICAOY_NAVE -= velocidade_nave;
 
+                // MOVIMENTO DOS HELICÓPTEROS
+                mover_helicopteros(&mapa_atual);
+
                 // Verificar se a nave chegou ao topo (final da fase)
-                if (POSICAOY_NAVE <= -TILE_SIZE) {
-                    // tentar carregar proxima fase; se sucesso, reposicionar nav e atualizar texto
+                if (POSICAOY_NAVE + TILE_SIZE <= 0) {
                     if (carregar_proxima_fase()) {
                         // Reposicionar nave na base para a nova fase (em posição segura)
                         int sx, sy;
@@ -673,6 +730,7 @@ int main() {
                             POSICAOY_NAVE = ALTURA - 100;
                         }
                         sprintf_s(texto, sizeof(texto), "River Raid INF - Fase %d", fase_atual);
+                        break;
                     }
                     else {
                         // Se não carregou próxima fase: marca jogo como completo
@@ -745,6 +803,7 @@ int main() {
                 }
             }
 
+            // VERIFICAÇÃO DE COLISÃO (não acontece se acabou de fazer transição de fase)
             if (colisao_nave(&mapa_atual, POSICAOX_NAVE, POSICAOY_NAVE, TILE_SIZE)) {
                 TelaAgora = GAME_OVER;
                 break;
