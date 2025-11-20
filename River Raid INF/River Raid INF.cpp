@@ -79,7 +79,7 @@ void resetar_jogo(void);
 int colisao_nave(Mapa* mapa, int nave_x, int nave_y, int tamanho) {
 
     // Lista de tiles que contam como colisão
-    char objetos_colisao[] = { 'T', 'N', 'X', 'P', 'G' };
+    char objetos_colisao[] = { 'T', 'N', 'X' };
     int total_objetos = sizeof(objetos_colisao) / sizeof(objetos_colisao[0]);
 
     // Verifica os 4 cantos da nave
@@ -122,19 +122,11 @@ int colisao_missil(Mapa* mapa, int mx, int my, int* pontos) {
 
     switch (tile) {
     case 'N':
-        *pontos += 50;
+        *pontos += 30;
         mapa->quadradinhos[ty][tx] = ' ';
         return 1;
     case 'X':
-        *pontos += 100;
-        mapa->quadradinhos[ty][tx] = ' ';
-        return 1;
-    case 'G':
-        *pontos += 25;
-        mapa->quadradinhos[ty][tx] = ' ';
-        return 1;
-    case 'P':
-        *pontos += 200;
+        *pontos += 60;
         mapa->quadradinhos[ty][tx] = ' ';
         return 1;
     default:
@@ -155,7 +147,7 @@ TelaJogo TelaGameOver(void) {
     EndDrawing();
 
     if (IsKeyPressed(KEY_ENTER)) {
-        return RANKING;
+        return MENU;
     }
     return GAME_OVER;
 }
@@ -458,6 +450,47 @@ int posicao_valida_nave(int pos_x, int pos_y, Mapa* mapa) {
     return mapa->quadradinhos[tile_y][tile_x] != 'T';
 }
 
+
+// Adicione esta função para verificar colisao com a ponte
+int colisao_ponte(Mapa* mapa, int nave_x, int nave_y, int tamanho) {
+    // Verifica os 4 cantos da nave
+    int pontos_x[4] = { nave_x, nave_x + tamanho - 1, nave_x, nave_x + tamanho - 1 };
+    int pontos_y[4] = { nave_y, nave_y, nave_y + tamanho - 1, nave_y + tamanho - 1 };
+
+    int ponte_encontrada = 0;
+    int ponte_y = -1; // Para armazenar a linha Y onde a ponte foi encontrada
+
+    for (int i = 0; i < 4; i++) {
+        int tile_x = pontos_x[i] / TILE_SIZE;
+        int tile_y = pontos_y[i] / TILE_SIZE;
+
+        // Verifica se está dentro do mapa
+        if (tile_x < 0 || tile_x >= LARGURA_MAPA || tile_y < 0 || tile_y >= ALTURA_MAPA)
+            continue;
+
+        // Se encontrou uma ponte
+        if (mapa->quadradinhos[tile_y][tile_x] == 'P') {
+            ponte_encontrada = 1;
+            ponte_y = tile_y; // Guarda a linha Y da ponte
+            break;
+        }
+    }
+
+    // Se encontrou uma ponte, remove TODA a linha horizontal de pontes
+    if (ponte_encontrada && ponte_y != -1) {
+        for (int x = 0; x < LARGURA_MAPA; x++) {
+            if (mapa->quadradinhos[ponte_y][x] == 'P') {
+                mapa->quadradinhos[ponte_y][x] = ' ';
+            }
+        }
+        mapa->tem_ponte = 0;
+        return 1; // Colisão com ponte detectada
+    }
+
+    return 0;
+}
+
+
 // Retorna 1 se encontrou e escreve out_x/out_y em pixels; 0 caso contrário (usa fallback)
 int encontrar_pos_spawn(Mapa* mapa, int* out_x, int* out_y) {
     // Procurar nas linhas horizontais correspondentes à visual inferior (próximo à tela)
@@ -604,10 +637,10 @@ int main() {
             // implementação futura
             TelaAgora = TelaIni();
             break;
-        case RANKING:
+        //case  G:
             // implementação futura
-            TelaAgora = TelaIni();
-            break;
+            //TelaAgora = TelaIni();
+            //break;
         case SAIR:
             TelaAgora = TelaSaida();
             break;
@@ -675,6 +708,11 @@ int main() {
                     posicao_valida_nave(nova_pos_x + TILE_SIZE - 1, POSICAOY_NAVE + TILE_SIZE - 1, &mapa_atual)) {
 
                     POSICAOX_NAVE = nova_pos_x;
+                }
+
+                // Verificar colisão com a ponte
+                if (colisao_ponte(&mapa_atual, POSICAOX_NAVE, POSICAOY_NAVE, TILE_SIZE)) {
+                    score_atual += 200; // Adiciona 200 pontos ao passar pela ponte
                 }
 
                 // Limites da tela - apenas horizontal
