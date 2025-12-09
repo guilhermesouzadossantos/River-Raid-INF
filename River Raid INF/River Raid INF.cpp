@@ -389,7 +389,7 @@ void desenhar_mapa(Mapa* mapa, Texture2D sprites) {
     Rectangle MISSIL = { 0, 70, 40, 50 };
     Rectangle HELICOPTERO = { 8, 184, 65, 44 };
     Rectangle NAVIO = { 12, 232, 133, 60 };
-    Rectangle GAS = { 530, 74, 32, 80 };
+    Rectangle GAS = { 609, 60, 60, 100 };
     Rectangle PONTE = { 685, 64, 255, 95 };
 
     for (int y = 0; y < ALTURA_MAPA; y++) {
