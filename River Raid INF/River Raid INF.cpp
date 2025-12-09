@@ -12,6 +12,7 @@
 #define TILE_SIZE 40
 #define LARGURA_MAPA 48
 #define ALTURA_MAPA 40
+#define MAX_EXPLOSOES 20 //  Máximo de explosões simultâneas
 
 // Menu 
 int opcao_menu = 0;
@@ -19,14 +20,14 @@ int op_saida_menu = 0;
 
 // Estrutura para representar o mapa do jogo
 typedef struct {
-    char quadradinhos[ALTURA_MAPA][LARGURA_MAPA]; // Desenha o mapa com base nas entradas 'T', 'N', 'X' etc.
+    char quadradinhos[ALTURA_MAPA][LARGURA_MAPA];
     int num_navios;
     int num_helicopteros;
     int num_postos_gasolina;
     int tem_ponte;
 } Mapa;
 
-//Define um novo tipo de vari?vel e o que ela pode representar para usarmos como seletora
+// Enum de Telas
 typedef enum TelaJogo {
     TELA_INICIAL = 0,
     MENU,
@@ -41,7 +42,7 @@ typedef enum TelaJogo {
     GAME_OVER
 } TelaJogo;
 
-//struct pra iniciar o jogo e pra salvar e carregar o jogo
+// Structs jogador
 typedef struct {
     char nome[50];
     int vidas;
@@ -50,33 +51,80 @@ typedef struct {
     int score;
 } Jogador;
 
-//struct pra salvar no final do jogo e usar o ranking
 typedef struct {
     char nome[50];
     int score;
 } JogadorFinal;
+
+// Estrutura para Explosão
+typedef struct {
+    float x, y;
+    int ativo;
+    float tempo_animacao;
+    int frame_atual;
+} ObjExplosao;
 
 // Variaveis globais do jogo
 Mapa mapa_atual;
 int fase_atual = 1;
 int total_fases = 10;
 int jogo_completo = 0;
-int velocidade_nave = 3; // Velocidade de movimento autom?tico da nave (talvez aumentar a cada fase?)
+int velocidade_nave = 3;
 int score_atual = 0;
 double ultimo_movimento_helicopteros = 0.0;
-double intervalo_movimento_helicopteros = 0.5; // Move a cada 0.5 segundos
+double intervalo_movimento_helicopteros = 0.5;
 
-// Estado (agora global para permitir reset)
+// Variáveis Globais de Combustível e Explosão
+float combustivel = 100.0f;
+const float MAX_COMBUSTIVEL = 100.0f;
+const float CONSUMO_GASOLINA = 10.0f; // Consumo por segundo
+ObjExplosao lista_explosoes[MAX_EXPLOSOES];
+int player_explodindo = 0; // Estado para travar o jogo enquanto a nave explode
+float timer_gameover = 0.0f;
+
+// Estado
 int POSICAOX_NAVE;
 int POSICAOY_NAVE;
 int POSICAOX_MISSIL;
 int POSICAOY_MISSIL;
-char texto[128]; // maior para segurança
+char texto[128];
 
 // Declarações das funções auxiliares
 void resetar_jogo(void);
+void adicionar_explosao(float x, float y); 
+void atualizar_explosoes(float dt);        
 
+// Função para criar explosão 
+void adicionar_explosao(float x, float y) {
+    for (int i = 0; i < MAX_EXPLOSOES; i++) {
+        if (!lista_explosoes[i].ativo) {
+            lista_explosoes[i].x = x;
+            lista_explosoes[i].y = y;
+            lista_explosoes[i].ativo = 1;
+            lista_explosoes[i].tempo_animacao = 0.0f;
+            lista_explosoes[i].frame_atual = 0;
+            break;
+        }
+    }
+}
 
+// Função para atualizar animação das explosões
+void atualizar_explosoes(float dt) {
+    for (int i = 0; i < MAX_EXPLOSOES; i++) {
+        if (lista_explosoes[i].ativo) {
+            lista_explosoes[i].tempo_animacao += dt;
+            // Muda de frame a cada 0.1 segundos
+            if (lista_explosoes[i].tempo_animacao > 0.1f) {
+                lista_explosoes[i].frame_atual++;
+                lista_explosoes[i].tempo_animacao = 0.0f;
+                // Se passou do frame 4 (0 a 4), desativa
+                if (lista_explosoes[i].frame_atual > 4) {
+                    lista_explosoes[i].ativo = 0;
+                }
+            }
+        }
+    }
+}
 
 int colisao_nave(Mapa* mapa, int nave_x, int nave_y, int tamanho) {
     // Verifica se qualquer parte da nave está acima da tela
@@ -89,13 +137,13 @@ int colisao_nave(Mapa* mapa, int nave_x, int nave_y, int tamanho) {
 
     if (nave_y < 0) {
         // Nave está parcialmente acima da tela - só verifica a parte visível
-        y_inicio = -nave_y; // Começa a verificar a partir da parte visível
+        y_inicio = -nave_y;
     }
 
     char objetos_colisao[] = { 'T', 'N', 'X' };
     int total_objetos = sizeof(objetos_colisao) / sizeof(objetos_colisao[0]);
 
-    // Verifica os 4 cantos da nave (apenas a parte visível se estiver saindo)
+    // Verifica os 4 cantos da nave
     int pontos_x[4] = { nave_x, nave_x + tamanho - 1, nave_x, nave_x + tamanho - 1 };
     int pontos_y[4] = { nave_y + y_inicio, nave_y + y_inicio, nave_y + tamanho - 1, nave_y + tamanho - 1 };
 
@@ -103,35 +151,27 @@ int colisao_nave(Mapa* mapa, int nave_x, int nave_y, int tamanho) {
         int tile_x = pontos_x[i] / TILE_SIZE;
         int tile_y = pontos_y[i] / TILE_SIZE;
 
-        // Verifica se está dentro do mapa
         if (tile_x < 0 || tile_x >= LARGURA_MAPA || tile_y < 0 || tile_y >= ALTURA_MAPA) {
-            // Se está fora do mapa mas pela parte inferior ou lateral, conta como colisão
             if (tile_y >= ALTURA_MAPA || tile_x < 0 || tile_x >= LARGURA_MAPA) {
-                return 1; // bateu fora do mapa game over
+                return 1; // bateu fora do mapa
             }
-            // Se está acima do mapa (tile_y < 0), ignora porque é transição de fase
             continue;
         }
 
         char tile = mapa->quadradinhos[tile_y][tile_x];
-
-        // Compara com todos os objetos sólidos
         for (int j = 0; j < total_objetos; j++) {
             if (tile == objetos_colisao[j]) {
                 return 1; // Colisão detectada
             }
         }
     }
-
     return 0;
 }
 
-// Colisão do míssil com o mapa; retorna 1 se acertou e remove o tile correspondente e adiciona pontos via ponteiro
+// Colisão do Míssil com lógica de Ponte e Explosões
 int colisao_missil(Mapa* mapa, int mx, int my, int* pontos) {
-    // Ponto de checagem no centro aproximado do míssil
     int check_x = mx + (TILE_SIZE / 4);
     int check_y = my + (TILE_SIZE / 2);
-
     int tx = check_x / TILE_SIZE;
     int ty = check_y / TILE_SIZE;
 
@@ -143,74 +183,64 @@ int colisao_missil(Mapa* mapa, int mx, int my, int* pontos) {
     case 'N':
         *pontos += 30;
         mapa->quadradinhos[ty][tx] = ' ';
+        adicionar_explosao((float)(tx * TILE_SIZE), (float)(ty * TILE_SIZE)); 
         return 1;
     case 'X':
         *pontos += 60;
         mapa->quadradinhos[ty][tx] = ' ';
+        adicionar_explosao((float)(tx * TILE_SIZE), (float)(ty * TILE_SIZE));
+        return 1;
+    case 'G': // Gasolina explode e dá pontos se atirar nela
+        *pontos += 80;
+        mapa->quadradinhos[ty][tx] = ' ';
+        adicionar_explosao((float)(tx * TILE_SIZE), (float)(ty * TILE_SIZE));
+        return 1;
+    case 'P': // Destruição da Ponte
+        *pontos += 500;
+        // Limpa a linha inteira da ponte
+        for (int x = 0; x < LARGURA_MAPA; x++) {
+            if (mapa->quadradinhos[ty][x] == 'P') {
+                mapa->quadradinhos[ty][x] = ' ';
+                if (x % 2 == 0) adicionar_explosao((float)(x * TILE_SIZE), (float)(ty * TILE_SIZE));
+            }
+        }
+        mapa->tem_ponte = 0;
         return 1;
     default:
         return 0;
     }
 }
 
-
-// Tela de Game Over — exibe score atual e instrução para ver o ranking
 TelaJogo TelaGameOver(void) {
     BeginDrawing();
     ClearBackground(BLACK);
-
     DrawText("GAME OVER", 350, 300, 60, RED);
     DrawText(TextFormat("SCORE: %d", score_atual), 380, 370, 40, WHITE);
     DrawText("Pressione ENTER para ver o RANKING", 240, 440, 25, WHITE);
-
     EndDrawing();
-
-    if (IsKeyPressed(KEY_ENTER)) {
-        return MENU;
-    }
+    if (IsKeyPressed(KEY_ENTER)) return MENU;
     return GAME_OVER;
 }
 
-
-//Função para carregar a Tela inicial antes do menu
 TelaJogo TelaIni(void) {
     Texture2D SPRITES = LoadTexture("assets/sprites.png");
-
     Rectangle NAVE = { 103, 70,  56, 52 };
-    Rectangle MISSIL = { 0, 70, 40, 50 };
-    Rectangle HELICOPTERO = { 8, 184, 65, 44 };
-    Rectangle NAVIO = { 12, 232, 133, 60 };
-    Rectangle GAS = { 530, 74, 32, 80 };
-    Rectangle PONTE = { 350, 10, 250, 100 };
-
     TelaJogo Tela = TELA_INICIAL;
-    int posy = 275;
-    //desenha a tela
     BeginDrawing();
     ClearBackground(RIVER_RAID_BLUE);
     DrawText("RiverINF", 500, 375, 90, YELLOW);
     DrawText("Pressione ENTER para iniciar", 500, 465, 15, WHITE);
-
     Rectangle destNave = { 90, 275, 300, 300 };
-
     DrawTexturePro(SPRITES, NAVE, destNave, Vector2{ 0, 0 }, 0, WHITE);
-    //atualiza a mesma
-    if (IsKeyPressed(KEY_ENTER)) {
-        Tela = MENU;
-    }
-
+    if (IsKeyPressed(KEY_ENTER)) Tela = MENU;
     EndDrawing();
-
     return Tela;
 }
 
-//Funcao para fazer o menu
 TelaJogo TelaMenu(void) {
-    TelaJogo Tela;
-    Tela = MENU;
+    TelaJogo Tela = MENU;
     const char* opcoes[4] = { "Novo Jogo", "Carregar Jogo", "Ranking", "Sair" };
     int total_opcoes = 4;
-
     if (IsKeyPressed(KEY_DOWN)) {
         opcao_menu++;
         if (opcao_menu >= total_opcoes) opcao_menu = 0;
@@ -219,51 +249,34 @@ TelaJogo TelaMenu(void) {
         opcao_menu--;
         if (opcao_menu < 0) opcao_menu = total_opcoes - 1;
     }
-    //Nesse caso como a funcao ? tipada fiz um switch case pra retornar a nova tela que o jogo vai entrar
     if (IsKeyPressed(KEY_ENTER)) {
         switch (opcao_menu) {
         case 0:
-            // chama resetar_jogo() para garantir estado limpo sempre que escolher Novo Jogo
             resetar_jogo();
             Tela = NOVO_JOGO;
             break;
-        case 1:
-            Tela = CARREGAR_JOGO;
-            break;
-        case 2:
-            Tela = RANKING;
-            break;
-        case 3:
-            Tela = SAIR;
-            break;
+        case 1: Tela = CARREGAR_JOGO; break;
+        case 2: Tela = RANKING; break;
+        case 3: Tela = SAIR; break;
         }
     }
-
-    //Desenho
     BeginDrawing();
     ClearBackground(RIVER_RAID_BLUE);
     DrawText("RiverINF", 500, 375, 90, YELLOW);
     DrawText("Pressione ENTER para selecionar", 500, 465, 15, WHITE);
-
     DrawText(opcoes[0], 90, 325, 40, YELLOW);
     DrawText(opcoes[1], 90, 325 + 60, 40, YELLOW);
     DrawText(opcoes[2], 90, 325 + 120, 40, YELLOW);
     DrawText(opcoes[3], 90, 325 + 180, 40, YELLOW);
-
     for (int i = 0; i < total_opcoes; i++) {
-        if (i == opcao_menu) {
-            DrawRectangle(60, (320 + i * 60) + 20, 10, 10, YELLOW);
-        }
+        if (i == opcao_menu) DrawRectangle(60, (320 + i * 60) + 20, 10, 10, YELLOW);
     }
     EndDrawing();
-
     return Tela;
 }
 
-//Funcao para tela de saida no menu
 TelaJogo TelaSaida(void) {
-    TelaJogo Tela;
-    Tela = SAIR;
+    TelaJogo Tela = SAIR;
     int ops_saida = 2;
     if (IsKeyPressed(KEY_UP)) {
         op_saida_menu--;
@@ -273,38 +286,26 @@ TelaJogo TelaSaida(void) {
         op_saida_menu++;
         if (op_saida_menu >= ops_saida) op_saida_menu = 0;
     }
-
     if (IsKeyPressed(KEY_ENTER)) {
         switch (op_saida_menu) {
-        case 0:
-            Tela = SAIRDEFINITIVO;
-            break;
-        case 1:
-            Tela = MENU;
-            break;
+        case 0: Tela = SAIRDEFINITIVO; break;
+        case 1: Tela = MENU; break;
         }
     }
-
     BeginDrawing();
     ClearBackground(RIVER_RAID_BLUE);
     DrawText("Tem certeza?", 265, 275, 60, YELLOW);
     DrawText("Sim, sair", 380, 400, 30, YELLOW);
     DrawText("Voltar ao menu", 380, 400 + 60, 30, YELLOW);
-
     for (int i = 0; i < ops_saida; i++) {
-        if (i == op_saida_menu) {
-            DrawRectangle(360, (400 + i * 60) + 10, 8, 8, YELLOW);
-        }
+        if (i == op_saida_menu) DrawRectangle(360, (400 + i * 60) + 10, 8, 8, YELLOW);
     }
     EndDrawing();
-
     return Tela;
 }
 
-//Função para quando pausa no meio do jogo
 TelaJogo TelaSalvareSair(void) {
-    TelaJogo Tela;
-    Tela = SALVARESAIR;
+    TelaJogo Tela = SALVARESAIR;
     int ops_saida = 2;
     if (IsKeyPressed(KEY_UP)) {
         op_saida_menu--;
@@ -314,35 +315,24 @@ TelaJogo TelaSalvareSair(void) {
         op_saida_menu++;
         if (op_saida_menu >= ops_saida) op_saida_menu = 0;
     }
-
     if (IsKeyPressed(KEY_ENTER)) {
         switch (op_saida_menu) {
-        case 0:
-            Tela = NOVO_JOGO;
-            break;
-        case 1:
-            Tela = SALVAR;
-            break;
+        case 0: Tela = NOVO_JOGO; break;
+        case 1: Tela = SALVAR; break;
         }
     }
-
     BeginDrawing();
     ClearBackground(RIVER_RAID_BLUE);
     DrawText("O que deseja?", 265, 275, 60, YELLOW);
     DrawText("Voltar ao jogo", 380, 400, 30, YELLOW);
     DrawText("Salvar e sair", 380, 400 + 60, 30, YELLOW);
-
     for (int i = 0; i < ops_saida; i++) {
-        if (i == op_saida_menu) {
-            DrawRectangle(360, (400 + i * 60) + 10, 8, 8, YELLOW);
-        }
+        if (i == op_saida_menu) DrawRectangle(360, (400 + i * 60) + 10, 8, 8, YELLOW);
     }
     EndDrawing();
-
     return Tela;
 }
 
-// Funcao para carregar mapa do arquivo (errno_t para n?o dar erro ...)
 int carregar_mapa(const char* nome_arquivo, Mapa* mapa) {
     FILE* arquivo = NULL;
     errno_t err = fopen_s(&arquivo, nome_arquivo, "r");
@@ -350,27 +340,19 @@ int carregar_mapa(const char* nome_arquivo, Mapa* mapa) {
         printf("ERRO: Nao foi possivel abrir o arquivo: %s\n", nome_arquivo);
         return 0;
     }
-
-    // Inicializar contadores (comeca em zero para nova contagem)
-    mapa->num_navios = 0; // Usar "->" porque Mapa ? um ponteiro, nao a struct em si
+    mapa->num_navios = 0;
     mapa->num_helicopteros = 0;
     mapa->num_postos_gasolina = 0;
     mapa->tem_ponte = 0;
-
     char linha[LARGURA_MAPA + 8];
-
     for (int y = 0; y < ALTURA_MAPA; y++) {
         if (fgets(linha, sizeof(linha), arquivo) == NULL) {
-            for (int x = 0; x < LARGURA_MAPA; x++) {
-                mapa->quadradinhos[y][x] = 'T';
-            }
+            for (int x = 0; x < LARGURA_MAPA; x++) mapa->quadradinhos[y][x] = 'T';
             continue;
         }
-
         for (int x = 0; x < LARGURA_MAPA; x++) {
             if (x < (int)strlen(linha) && linha[x] != '\n' && linha[x] != '\r') {
                 mapa->quadradinhos[y][x] = linha[x];
-
                 switch (linha[x]) {
                 case 'N': mapa->num_navios++; break;
                 case 'X': mapa->num_helicopteros++; break;
@@ -383,47 +365,31 @@ int carregar_mapa(const char* nome_arquivo, Mapa* mapa) {
             }
         }
     }
-
     fclose(arquivo);
-    printf("Mapa %s carregado: Navios=%d, Helicopteros=%d, Postos=%d, Ponte=%d\n",
-        nome_arquivo, mapa->num_navios, mapa->num_helicopteros,
-        mapa->num_postos_gasolina, mapa->tem_ponte);
     return 1;
 }
 
-// Funcao para carregar a proxima fase
 int carregar_proxima_fase() {
-    // tenta carregar a proxima sem alterar fase_atual ate ter sucesso
     if (fase_atual >= total_fases) {
-        printf("Todas as fases completadas!\n");
         jogo_completo = 1;
         return 0;
     }
-
     int proxima = fase_atual + 1;
     char nome_arquivo[50];
     sprintf_s(nome_arquivo, sizeof(nome_arquivo), "assets/fase%d.txt", proxima);
-
-    printf("Carregando proxima fase: %s\n", nome_arquivo);
     if (carregar_mapa(nome_arquivo, &mapa_atual)) {
         fase_atual = proxima;
         return 1;
     }
-    else {
-        printf("Falha ao carregar a fase %d\n", proxima);
-        return 0;
-    }
+    return 0;
 }
 
-// Funcao para desenhar o mapa na tela com base no arquivo .txt da fase
 void desenhar_mapa(Mapa* mapa, Texture2D sprites) {
-
-
     Rectangle NAVE = { 103, 70, 56, 52 };
     Rectangle MISSIL = { 0, 70, 40, 50 };
     Rectangle HELICOPTERO = { 8, 184, 65, 44 };
     Rectangle NAVIO = { 12, 232, 133, 60 };
-    Rectangle GAS = { 609, 60, 60, 100 };
+    Rectangle GAS = { 530, 74, 32, 80 };
     Rectangle PONTE = { 685, 64, 255, 95 };
 
     for (int y = 0; y < ALTURA_MAPA; y++) {
@@ -435,90 +401,64 @@ void desenhar_mapa(Mapa* mapa, Texture2D sprites) {
             Rectangle NAVIO_destino = { (float)screen_x, (float)screen_y, TILE_SIZE, TILE_SIZE };
 
             switch (tile) {
-            case 'T':   // TERRA
-                DrawRectangle(screen_x, screen_y, TILE_SIZE, TILE_SIZE, DARKGREEN);
+            case 'T': DrawRectangle(screen_x, screen_y, TILE_SIZE, TILE_SIZE, DARKGREEN); break;
+            case 'N':
+                DrawRectangle(screen_x, screen_y, TILE_SIZE, TILE_SIZE, RIVER_RAID_BLUE); // Fundo
+                DrawTexturePro(sprites, NAVIO, NAVIO_destino, Vector2{ 0, 0 }, 0, WHITE);
                 break;
-            case 'N': DrawTexturePro(sprites, NAVIO, NAVIO_destino, Vector2{ 0, 0 }, 0, WHITE);
+            case 'X':
+                DrawRectangle(screen_x, screen_y, TILE_SIZE, TILE_SIZE, RIVER_RAID_BLUE);
+                DrawTexturePro(sprites, HELICOPTERO, destino, Vector2{ 0, 0 }, 0, WHITE);
                 break;
-            case 'X': DrawTexturePro(sprites, HELICOPTERO, destino, Vector2{ 0, 0 }, 0, WHITE); 
+            case 'G':
+                DrawRectangle(screen_x, screen_y, TILE_SIZE, TILE_SIZE, RIVER_RAID_BLUE);
+                DrawTexturePro(sprites, GAS, destino, Vector2{ 0, 0 }, 0, WHITE);
                 break;
-            case 'G': DrawTexturePro(sprites, GAS, destino, Vector2{ 0, 0 }, 0, WHITE);
-                break;
-            case 'P': DrawTexturePro(sprites, PONTE, destino, Vector2{ 0, 0 }, 0, WHITE);
+            case 'P':
+                DrawRectangle(screen_x, screen_y, TILE_SIZE, TILE_SIZE, RIVER_RAID_BLUE);
+                DrawTexturePro(sprites, PONTE, destino, Vector2{ 0, 0 }, 0, WHITE);
                 break;
             case ' ':
-            default:
-                DrawRectangle(destino.x, destino.y, TILE_SIZE, TILE_SIZE, RIVER_RAID_BLUE);
-                break;
+            default: DrawRectangle(destino.x, destino.y, TILE_SIZE, TILE_SIZE, RIVER_RAID_BLUE); break;
             }
         }
     }
 }
 
-// Funcao para verificar se uma posicao e valida para a nave (nao e terra)
 int posicao_valida_nave(int pos_x, int pos_y, Mapa* mapa) {
-    // Converter coordenadas de pixel para coordenadas de tile
     int tile_x = pos_x / TILE_SIZE;
     int tile_y = pos_y / TILE_SIZE;
-
-    // Verificar se esta dentro dos limites do mapa
-    if (tile_x < 0 || tile_x >= LARGURA_MAPA || tile_y < 0 || tile_y >= ALTURA_MAPA) {
-        return 0;
-    }
-
+    if (tile_x < 0 || tile_x >= LARGURA_MAPA || tile_y < 0 || tile_y >= ALTURA_MAPA) return 0;
     return mapa->quadradinhos[tile_y][tile_x] != 'T';
 }
 
-
-// Adicione esta função para verificar colisao com a ponte
 int colisao_ponte(Mapa* mapa, int nave_x, int nave_y, int tamanho) {
-    // Verifica os 4 cantos da nave
     int pontos_x[4] = { nave_x, nave_x + tamanho - 1, nave_x, nave_x + tamanho - 1 };
     int pontos_y[4] = { nave_y, nave_y, nave_y + tamanho - 1, nave_y + tamanho - 1 };
-
     int ponte_encontrada = 0;
-    int ponte_y = -1; // Para armazenar a linha Y onde a ponte foi encontrada
-
+    int ponte_y = -1;
     for (int i = 0; i < 4; i++) {
         int tile_x = pontos_x[i] / TILE_SIZE;
         int tile_y = pontos_y[i] / TILE_SIZE;
-
-        // Verifica se está dentro do mapa
-        if (tile_x < 0 || tile_x >= LARGURA_MAPA || tile_y < 0 || tile_y >= ALTURA_MAPA)
-            continue;
-
-        // Se encontrou uma ponte
+        if (tile_x < 0 || tile_x >= LARGURA_MAPA || tile_y < 0 || tile_y >= ALTURA_MAPA) continue;
         if (mapa->quadradinhos[tile_y][tile_x] == 'P') {
             ponte_encontrada = 1;
-            ponte_y = tile_y; // Guarda a linha Y da ponte
+            ponte_y = tile_y;
             break;
         }
     }
-
-    // Se encontrou uma ponte, remove TODA a linha horizontal de pontes
     if (ponte_encontrada && ponte_y != -1) {
-        for (int x = 0; x < LARGURA_MAPA; x++) {
-            if (mapa->quadradinhos[ponte_y][x] == 'P') {
-                mapa->quadradinhos[ponte_y][x] = ' ';
-            }
-        }
-        mapa->tem_ponte = 0;
-        return 1; // Colisão com ponte detectada
+        // Colisão física com ponte (sem ser míssil)
+        return 1;
     }
-
     return 0;
 }
 
-
-// Retorna 1 se encontrou e escreve out_x/out_y em pixels; 0 caso contrário (usa fallback)
 int encontrar_pos_spawn(Mapa* mapa, int* out_x, int* out_y) {
-    // Procurar nas linhas horizontais correspondentes à visual inferior (próximo à tela)
     int try_y = ALTURA - TILE_SIZE - 1;
     if (try_y < 0) try_y = 0;
-
     for (int tx = 0; tx < LARGURA_MAPA; tx++) {
         int px = tx * TILE_SIZE;
-        // verificar os 4 cantos para garantir espaço
         if (posicao_valida_nave(px, try_y, mapa) &&
             posicao_valida_nave(px + TILE_SIZE - 1, try_y, mapa) &&
             posicao_valida_nave(px, try_y + TILE_SIZE - 1, mapa) &&
@@ -528,47 +468,40 @@ int encontrar_pos_spawn(Mapa* mapa, int* out_x, int* out_y) {
             return 1;
         }
     }
-
-    // não achou: tenta varrer um pouco acima (duas linhas)
     for (int dy = 1; dy <= 3; dy++) {
         int ty = try_y - dy * TILE_SIZE;
         if (ty < 0) break;
         for (int tx = 0; tx < LARGURA_MAPA; tx++) {
             int px = tx * TILE_SIZE;
             if (posicao_valida_nave(px, ty, mapa) &&
-                posicao_valida_nave(px + TILE_SIZE - 1, ty, mapa) &&
-                posicao_valida_nave(px, ty + TILE_SIZE - 1, mapa) &&
-                posicao_valida_nave(px + TILE_SIZE - 1, ty + TILE_SIZE - 1, mapa)) {
+                posicao_valida_nave(px + TILE_SIZE - 1, ty, mapa)) {
                 *out_x = px;
                 *out_y = ty;
                 return 1;
             }
         }
     }
-
     return 0;
 }
 
-// Função que reinicia o estado do jogo para iniciar um Novo Jogo
 void resetar_jogo(void) {
     fase_atual = 1;
     score_atual = 0;
     jogo_completo = 0;
     velocidade_nave = 3;
 
-    // Reposiciona a nave e o míssil
+    // Inicializar combustível e estados de morte
+    combustivel = MAX_COMBUSTIVEL;
+    player_explodindo = 0;
+    timer_gameover = 0.0f;
+    for (int i = 0; i < MAX_EXPLOSOES; i++) lista_explosoes[i].ativo = 0;
+
     POSICAOX_NAVE = LARGURA / 2;
     POSICAOY_NAVE = ALTURA - 100;
     POSICAOX_MISSIL = -100;
     POSICAOY_MISSIL = -100;
-
-    // Atualiza o texto da fase
     sprintf_s(texto, sizeof(texto), "River Raid INF - Fase %d", fase_atual);
-
-    // Recarrega o mapa da fase 1 (se falhar, a função carregar_mapa já imprime erro)
     carregar_mapa("assets/fase1.txt", &mapa_atual);
-
-    // Tentar achar um spawn seguro e ajustar se encontrado
     int sx, sy;
     if (encontrar_pos_spawn(&mapa_atual, &sx, &sy)) {
         POSICAOX_NAVE = sx;
@@ -578,32 +511,15 @@ void resetar_jogo(void) {
 
 void mover_helicopteros(Mapa* mapa) {
     double tempo_atual = GetTime();
-
-    // Verifica se é hora de mover os helicópteros
-    if (tempo_atual - ultimo_movimento_helicopteros < intervalo_movimento_helicopteros) {
-        return;
-    }
-
+    if (tempo_atual - ultimo_movimento_helicopteros < intervalo_movimento_helicopteros) return;
     ultimo_movimento_helicopteros = tempo_atual;
-
-    // Percorre todo o mapa procurando por helicópteros
     for (int y = 0; y < ALTURA_MAPA; y++) {
         for (int x = 0; x < LARGURA_MAPA; x++) {
             if (mapa->quadradinhos[y][x] == 'X') {
-                // Gera uma direção aleatória: -1 (esquerda), 0 (parado), 1 (direita)
                 int direcao = GetRandomValue(-1, 1);
-
-                if (direcao == 0) {
-                    continue; // Fica parado neste frame
-                }
-
+                if (direcao == 0) continue;
                 int novo_x = x + direcao;
-
-                // Verifica se a nova posição é válida
-                if (novo_x >= 0 && novo_x < LARGURA_MAPA &&
-                    mapa->quadradinhos[y][novo_x] == ' ') {
-
-                    // Move o helicóptero
+                if (novo_x >= 0 && novo_x < LARGURA_MAPA && mapa->quadradinhos[y][novo_x] == ' ') {
                     mapa->quadradinhos[y][x] = ' ';
                     mapa->quadradinhos[y][novo_x] = 'X';
                 }
@@ -612,9 +528,7 @@ void mover_helicopteros(Mapa* mapa) {
     }
 }
 
-// main
 int main() {
-    // inicializar estado (em caso de entrar direto em NOVO_JOGO)
     POSICAOX_NAVE = LARGURA / 2;
     POSICAOY_NAVE = ALTURA - 100;
     POSICAOX_MISSIL = -100;
@@ -622,250 +536,223 @@ int main() {
     sprintf_s(texto, sizeof(texto), "River Raid INF - Fase %d", fase_atual);
 
     TelaJogo TelaAgora = TELA_INICIAL;
-
     InitWindow(LARGURA, ALTURA, "River Raid INF");
     SetTargetFPS(60);
 
-    // Tentar carregar primeira fase
     if (!carregar_mapa("assets/fase1.txt", &mapa_atual)) {
         while (!WindowShouldClose()) {
             BeginDrawing();
             ClearBackground(RED);
-            DrawText("ERRO: Nao foi possivel carregar fase1.txt", 50, ALTURA / 2 - 20, 30, WHITE);
-            DrawText("Certifique-se de que o arquivo existe no diretorio correto", 50, ALTURA / 2 + 20, 20, WHITE);
-            DrawText("Pressione ESC para sair", 50, ALTURA / 2 + 50, 20, WHITE);
+            DrawText("ERRO: Nao foi possivel carregar fase1.txt", 50, ALTURA / 2, 20, WHITE);
             EndDrawing();
-            if (IsKeyPressed(KEY_ESCAPE)) break;
         }
-        CloseWindow();
         return 1;
     }
 
-    // SPRITES - Agora com tamanho 40x40
     Texture2D SPRITES = LoadTexture("assets/sprites.png");
-    if (SPRITES.id == 0) {
-        printf("AVISO: Nao foi possivel carregar sprites.png. Usando graficos basicos.\n");
-    }
+    if (SPRITES.id == 0) printf("AVISO: Nao foi possivel carregar sprites.png.\n");
 
-    // Ajustando os sprites para 40x40 pixels
-    Rectangle NAVE = { 103, 70,  56, 52 };
+    Rectangle NAVE_CENTRO = { 103, 70,  56, 52 };
+    // Sprites para lados
+    Rectangle NAVE_ESQ = { 45, 70, 56, 52 };
+    Rectangle NAVE_DIR = { 161, 70, 56, 52 };
     Rectangle MISSIL = { 0, 70, 40, 50 };
 
-    // Variável para detectar transições de tela (para inicializar apenas quando entrar em NOVO_JOGO)
+    // Frames da explosão
+    Rectangle FRAMES_EXPLOSAO[5] = {
+        { 220, 60, 45, 45 }, { 270, 60, 45, 45 }, { 320, 60, 45, 45 },
+        { 370, 60, 45, 45 }, { 420, 60, 45, 45 }
+    };
+
     TelaJogo TelaAnterior = (TelaJogo)-1;
 
     while (!WindowShouldClose()) {
+        float dt = GetFrameTime();
 
-        // Se houve mudança de tela, realizar inicializações específicas
         if (TelaAgora != TelaAnterior) {
-            // Entrando em NOVO_JOGO ja tratamos reset ao escolher "Novo Jogo" no menu,
-            // mas se houver outro caminho que setar NOVO_JOGO, garantir estado limpo:
             if (TelaAgora == NOVO_JOGO) {
-                // garantia adicional: se o mapa não for da fase atual, recarregar
-                // atualizar texto
                 sprintf_s(texto, sizeof(texto), "River Raid INF - Fase %d", fase_atual);
-
-                // garantir spawn em posição válida
                 int sx, sy;
                 if (encontrar_pos_spawn(&mapa_atual, &sx, &sy)) {
-                    POSICAOX_NAVE = sx;
-                    POSICAOY_NAVE = sy;
+                    POSICAOX_NAVE = sx; POSICAOY_NAVE = sy;
                 }
-                else {
-                    POSICAOX_NAVE = LARGURA / 2;
-                    POSICAOY_NAVE = ALTURA - 100;
-                }
-
-                POSICAOX_MISSIL = -100;
-                POSICAOY_MISSIL = -100;
             }
         }
 
         switch (TelaAgora) {
-        case TELA_INICIAL:
-            TelaAgora = TelaIni();
-            break;
-        case MENU:
-            TelaAgora = TelaMenu();
-            break;
-        case CARREGAR_JOGO:
-            // implementação futura
-            TelaAgora = TelaIni();
-            break;
-        //case  G:
-            // implementação futura
-            //TelaAgora = TelaIni();
-            //break;
-        case SAIR:
-            TelaAgora = TelaSaida();
-            break;
-        case SAIRDEFINITIVO:
-            CloseWindow();
-            return 1;
-        case SALVARESAIR:
-            TelaAgora = TelaSalvareSair();
-            break;
-        case SALVAR:
-            TelaAgora = TelaIni();
-            break;
+        case TELA_INICIAL: TelaAgora = TelaIni(); break;
+        case MENU: TelaAgora = TelaMenu(); break;
+        case CARREGAR_JOGO: TelaAgora = TelaIni(); break;
+        case SAIR: TelaAgora = TelaSaida(); break;
+        case SAIRDEFINITIVO: CloseWindow(); return 1;
+        case SALVARESAIR: TelaAgora = TelaSalvareSair(); break;
+        case SALVAR: TelaAgora = TelaIni(); break;
         case NOVO_JOGO:
-            // MOVIMENTO AUTOMATICO DA NAVE (PARA CIMA)
             if (!jogo_completo) {
-                POSICAOY_NAVE -= velocidade_nave;
 
-                // MOVIMENTO DOS HELICÓPTEROS
-                mover_helicopteros(&mapa_atual);
+                // Se estiver explodindo, roda animação e espera
+                if (player_explodindo) {
+                    atualizar_explosoes(dt);
+                    timer_gameover += dt;
+                    if (timer_gameover > 1.5f) { // 1.5s de delay antes do game over
+                        TelaAgora = GAME_OVER;
+                    }
+                }
+                else {
 
-                // Verificar se a nave chegou ao topo (final da fase)
-                if (POSICAOY_NAVE + TILE_SIZE <= 0) {
-                    if (carregar_proxima_fase()) {
-                        // Reposicionar nave na base para a nova fase (em posição segura)
-                        int sx, sy;
-                        if (encontrar_pos_spawn(&mapa_atual, &sx, &sy)) {
-                            POSICAOX_NAVE = sx;
-                            POSICAOY_NAVE = sy;
+                    // Combustível
+                    combustivel -= CONSUMO_GASOLINA * dt;
+                    if (combustivel <= 0) {
+                        combustivel = 0;
+                        adicionar_explosao((float)POSICAOX_NAVE, (float)POSICAOY_NAVE);
+                        player_explodindo = 1;
+                    }
+
+                    // ADIÇÃO: Recarga (passar por cima do 'G')
+                    int cx = (POSICAOX_NAVE + TILE_SIZE / 2) / TILE_SIZE;
+                    int cy = (POSICAOY_NAVE + TILE_SIZE / 2) / TILE_SIZE;
+                    if (cx >= 0 && cx < LARGURA_MAPA && cy >= 0 && cy < ALTURA_MAPA) {
+                        if (mapa_atual.quadradinhos[cy][cx] == 'G') {
+                            combustivel += 40.0f * dt;
+                            if (combustivel > MAX_COMBUSTIVEL) combustivel = MAX_COMBUSTIVEL;
+                        }
+                    }
+
+                    POSICAOY_NAVE -= velocidade_nave;
+                    mover_helicopteros(&mapa_atual);
+
+                    // Atualiza explosões dos inimigos
+                    atualizar_explosoes(dt);
+
+                    if (POSICAOY_NAVE + TILE_SIZE <= 0) {
+                        if (carregar_proxima_fase()) {
+                            int sx, sy;
+                            if (encontrar_pos_spawn(&mapa_atual, &sx, &sy)) {
+                                POSICAOX_NAVE = sx; POSICAOY_NAVE = sy;
+                            }
+                            else {
+                                POSICAOX_NAVE = LARGURA / 2; POSICAOY_NAVE = ALTURA - 100;
+                            }
+                            sprintf_s(texto, sizeof(texto), "River Raid INF - Fase %d", fase_atual);
+                            break;
                         }
                         else {
-                            POSICAOX_NAVE = LARGURA / 2;
-                            POSICAOY_NAVE = ALTURA - 100;
+                            jogo_completo = 1;
                         }
-                        sprintf_s(texto, sizeof(texto), "River Raid INF - Fase %d", fase_atual);
-                        break;
+                    }
+
+                    // Controles
+                    Rectangle nave_source = NAVE_CENTRO; // Sprite padrão
+                    {
+                        int nova_pos_x = POSICAOX_NAVE;
+                        if (IsKeyDown(KEY_RIGHT)) {
+                            nova_pos_x += 5;
+                            nave_source = NAVE_DIR; // Sprite Direita
+                        }
+                        if (IsKeyDown(KEY_LEFT)) {
+                            nova_pos_x -= 5;
+                            nave_source = NAVE_ESQ; //Sprite Esquerda
+                        }
+                        if (IsKeyDown(KEY_DOWN)) POSICAOY_NAVE += 2;
+                        if (IsKeyDown(KEY_UP)) POSICAOY_NAVE -= 5;
+                        if (IsKeyPressed(KEY_BACKSPACE)) TelaAgora = SALVARESAIR;
+
+                        if (posicao_valida_nave(nova_pos_x, POSICAOY_NAVE, &mapa_atual) &&
+                            posicao_valida_nave(nova_pos_x + TILE_SIZE - 1, POSICAOY_NAVE, &mapa_atual) &&
+                            posicao_valida_nave(nova_pos_x, POSICAOY_NAVE + TILE_SIZE - 1, &mapa_atual) &&
+                            posicao_valida_nave(nova_pos_x + TILE_SIZE - 1, POSICAOY_NAVE + TILE_SIZE - 1, &mapa_atual)) {
+                            POSICAOX_NAVE = nova_pos_x;
+                        }
+
+                        // Colisão física com ponte (morte)
+                        if (colisao_ponte(&mapa_atual, POSICAOX_NAVE, POSICAOY_NAVE, TILE_SIZE)) {
+                            adicionar_explosao((float)POSICAOX_NAVE, (float)POSICAOY_NAVE);
+                            player_explodindo = 1;
+                        }
+
+                        if (POSICAOX_NAVE < 0) POSICAOX_NAVE = 0;
+                        if (POSICAOX_NAVE > LARGURA - TILE_SIZE) POSICAOX_NAVE = LARGURA - TILE_SIZE;
+                    }
+
+                    if (IsKeyPressed(KEY_SPACE) && POSICAOY_MISSIL < -50) {
+                        POSICAOX_MISSIL = POSICAOX_NAVE + (TILE_SIZE / 4);
+                        POSICAOY_MISSIL = POSICAOY_NAVE - 40;
+                    }
+
+                    if (POSICAOY_MISSIL > -50) {
+                        POSICAOY_MISSIL -= 10;
+                        if (POSICAOY_MISSIL < -TILE_SIZE) {
+                            POSICAOY_MISSIL = -100; POSICAOX_MISSIL = -100;
+                        }
+                    }
+
+                    if (POSICAOY_MISSIL > -50) {
+                        if (colisao_missil(&mapa_atual, POSICAOX_MISSIL, POSICAOY_MISSIL, &score_atual)) {
+                            POSICAOY_MISSIL = -100; POSICAOX_MISSIL = -100;
+                        }
+                    }
+
+                    // Colisão física com inimigos/terreno
+                    if (colisao_nave(&mapa_atual, POSICAOX_NAVE, POSICAOY_NAVE, TILE_SIZE)) {
+                        adicionar_explosao((float)POSICAOX_NAVE, (float)POSICAOY_NAVE);
+                        player_explodindo = 1;
+                    }
+
+                    // DESENHO
+                    BeginDrawing();
+                    ClearBackground(RIVER_RAID_BLUE);
+                    desenhar_mapa(&mapa_atual, SPRITES);
+
+                    if (SPRITES.id != 0) {
+                        // Só desenha a nave se ela não estiver explodindo
+                        if (!player_explodindo) {
+                            Rectangle destNave = { (float)POSICAOX_NAVE, (float)POSICAOY_NAVE, TILE_SIZE, TILE_SIZE };
+                            DrawTexturePro(SPRITES, nave_source, destNave, Vector2{ 0, 0 }, 0, WHITE);
+                        }
+                        if (POSICAOY_MISSIL > -50) {
+                            Rectangle destMissil = { (float)POSICAOX_MISSIL, (float)POSICAOY_MISSIL, TILE_SIZE / 2, TILE_SIZE };
+                            DrawTexturePro(SPRITES, MISSIL, destMissil, Vector2{ 0, 0 }, 0, WHITE);
+                        }
                     }
                     else {
-                        // Se não carregou próxima fase: marca jogo como completo
-                        jogo_completo = 1;
+                        DrawRectangle(POSICAOX_NAVE, POSICAOY_NAVE, TILE_SIZE, TILE_SIZE, WHITE);
                     }
+
+                    // Desenhar Explosões
+                    for (int i = 0; i < MAX_EXPLOSOES; i++) {
+                        if (lista_explosoes[i].ativo) {
+                            Rectangle destExp = { lista_explosoes[i].x, lista_explosoes[i].y, TILE_SIZE, TILE_SIZE };
+                            DrawTexturePro(SPRITES, FRAMES_EXPLOSAO[lista_explosoes[i].frame_atual], destExp, Vector2{ 0,0 }, 0, WHITE);
+                        }
+                    }
+
+                    DrawRectangle(0, 0, LARGURA, 30, Fade(BLACK, 0.7f));
+                    DrawText(texto, 10, 5, 20, WHITE);
+                    DrawText(TextFormat("Score: %d", score_atual), LARGURA / 2 - 40, 5, 20, WHITE);
+
+                    // HUD Combustível
+                    DrawText("Combustivel", LARGURA - 280, 5, 20, WHITE);
+                    DrawRectangle(LARGURA - 160, 5, 150, 20, WHITE);
+                    Color corComb = GREEN;
+                    if (combustivel < 30) corComb = RED;
+                    DrawRectangle(LARGURA - 160, 5, (int)(150 * (combustivel / MAX_COMBUSTIVEL)), 20, corComb);
+
+                    if (jogo_completo) {
+                        DrawRectangle(LARGURA / 2 - 150, ALTURA / 2 - 50, 300, 100, Fade(BLACK, 0.8f));
+                        DrawText("JOGO COMPLETO!", LARGURA / 2 - 120, ALTURA / 2 - 30, 30, GREEN);
+                    }
+                    EndDrawing();
                 }
             }
-
-            // Controles da nave 
-            {
-                int nova_pos_x = POSICAOX_NAVE;
-
-                if (IsKeyDown(KEY_RIGHT)) {
-                    nova_pos_x += 5;
-                }
-                if (IsKeyDown(KEY_LEFT)) {
-                    nova_pos_x -= 5;
-                }
-                if (IsKeyDown(KEY_DOWN)) {
-                    POSICAOY_NAVE += 2;
-                }
-                if (IsKeyDown(KEY_UP)) {
-                    POSICAOY_NAVE -= 5;
-                }
-                if (IsKeyPressed(KEY_BACKSPACE)) {
-                    TelaAgora = SALVARESAIR;
-                }
-
-                // Verificar se a nova posicao horizontal ? valida (nao e terra)
-                if (posicao_valida_nave(nova_pos_x, POSICAOY_NAVE, &mapa_atual) &&
-                    posicao_valida_nave(nova_pos_x + TILE_SIZE - 1, POSICAOY_NAVE, &mapa_atual) &&
-                    posicao_valida_nave(nova_pos_x, POSICAOY_NAVE + TILE_SIZE - 1, &mapa_atual) &&
-                    posicao_valida_nave(nova_pos_x + TILE_SIZE - 1, POSICAOY_NAVE + TILE_SIZE - 1, &mapa_atual)) {
-
-                    POSICAOX_NAVE = nova_pos_x;
-                }
-
-                // Verificar colisão com a ponte
-                if (colisao_ponte(&mapa_atual, POSICAOX_NAVE, POSICAOY_NAVE, TILE_SIZE)) {
-                    score_atual += 200; // Adiciona 200 pontos ao passar pela ponte
-                }
-
-                // Limites da tela - apenas horizontal
-                if (POSICAOX_NAVE < 0) POSICAOX_NAVE = 0;
-                if (POSICAOX_NAVE > LARGURA - TILE_SIZE) POSICAOX_NAVE = LARGURA - TILE_SIZE;
-            }
-
-            // Disparar missil
-            if (IsKeyPressed(KEY_SPACE) && POSICAOY_MISSIL < -50) {
-                POSICAOX_MISSIL = POSICAOX_NAVE + (TILE_SIZE / 4);
-                POSICAOY_MISSIL = POSICAOY_NAVE - 40;
-            }
-
-            // Atualizar missil
-            if (POSICAOY_MISSIL > -50) {
-                POSICAOY_MISSIL -= 10;
-
-                // Resetar missil se sair da tela
-                if (POSICAOY_MISSIL < -TILE_SIZE) {
-                    POSICAOY_MISSIL = -100;
-                    POSICAOX_MISSIL = -100;
-                }
-            }
-
-            if (POSICAOY_MISSIL > -50) {
-                if (colisao_missil(&mapa_atual, POSICAOX_MISSIL, POSICAOY_MISSIL, &score_atual)) {
-                    // resetar missil ao acertar
-                    POSICAOY_MISSIL = -100;
-                    POSICAOX_MISSIL = -100;
-                }
-            }
-
-            // VERIFICAÇÃO DE COLISÃO (não acontece se acabou de fazer transição de fase)
-            if (colisao_nave(&mapa_atual, POSICAOX_NAVE, POSICAOY_NAVE, TILE_SIZE)) {
-                TelaAgora = GAME_OVER;
-                break;
-            }
-
-            BeginDrawing();
-            ClearBackground(RIVER_RAID_BLUE);
-
-            // Desenhar mapa estatico
-            desenhar_mapa(&mapa_atual, SPRITES);
-
-            // Desenhar elementos do jogo com tamanho 40x40
-            if (SPRITES.id != 0) {
-                // Desenhar nave redimensionada para 40x40
-                Rectangle destNave = { POSICAOX_NAVE, POSICAOY_NAVE, TILE_SIZE, TILE_SIZE };
-                DrawTexturePro(SPRITES, NAVE, destNave, Vector2{ 0, 0 }, 0, WHITE);
-
-                // Desenhar missil redimensionado para 20x40
-                if (POSICAOY_MISSIL > -50) {
-                    Rectangle destMissil = { POSICAOX_MISSIL, POSICAOY_MISSIL, TILE_SIZE / 2, TILE_SIZE };
-                    DrawTexturePro(SPRITES, MISSIL, destMissil, Vector2{ 0, 0 }, 0, WHITE);
-                }
-            }
-            else {
-                // Fallback: usar retangulos coloridos com tamanho 40x40
-                DrawRectangle(POSICAOX_NAVE, POSICAOY_NAVE, TILE_SIZE, TILE_SIZE, WHITE);
-                if (POSICAOY_MISSIL > -50) {
-                    DrawRectangle(POSICAOX_MISSIL, POSICAOY_MISSIL, TILE_SIZE / 2, TILE_SIZE, ORANGE);
-                }
-            }
-
-            // Desenhar informacoes da fase e HUD
-            DrawRectangle(0, 0, LARGURA, 30, Fade(BLACK, 0.7f));
-            DrawText(texto, 10, 5, 20, WHITE);
-            DrawText(TextFormat("Fase: %d/%d", fase_atual, total_fases), LARGURA - 150, 5, 20, WHITE);
-            DrawText(TextFormat("Score: %d", score_atual), LARGURA / 2 - 40, 5, 20, WHITE);
-
-            // Mostrar mensagem de jogo completo
-            if (jogo_completo) {
-                DrawRectangle(LARGURA / 2 - 150, ALTURA / 2 - 50, 300, 100, Fade(BLACK, 0.8f));
-                DrawText("JOGO COMPLETO!", LARGURA / 2 - 120, ALTURA / 2 - 30, 30, GREEN);
-                DrawText("Pressione ESC para sair", LARGURA / 2 - 120, ALTURA / 2 + 10, 20, WHITE);
-            }
-
-            EndDrawing();
             break;
 
-        case GAME_OVER:
-            TelaAgora = TelaGameOver();
-            break;
-
-        default:
-            break;
+        case GAME_OVER: TelaAgora = TelaGameOver(); break;
+        default: break;
         }
-
-        // atualizar TelaAnterior para detectar próxima transição
         TelaAnterior = TelaAgora;
     }
 
-    if (SPRITES.id != 0) {
-        UnloadTexture(SPRITES);
-    }
+    if (SPRITES.id != 0) UnloadTexture(SPRITES);
     CloseWindow();
     return 0;
 }
