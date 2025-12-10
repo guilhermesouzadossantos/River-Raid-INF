@@ -358,7 +358,7 @@ TelaJogo TelaSalvareSair(void) {
 // Função para salvar o ranking no arquivo binário
 void salvar_ranking(JogadorFinal ranking[]) {
     FILE* arquivo = NULL;
-    errno_t err = fopen_s(&arquivo, "assets/highscore.bin", "ab+");
+    errno_t err = fopen_s(&arquivo, "assets/highscore.bin", "wb+");
 
     if (err != 0 || !arquivo) {
         printf("ERRO: Nao foi possivel salvar highscore.bin\n");
@@ -384,7 +384,7 @@ void inserir_no_ranking(JogadorFinal ranking[], int score, const char* nome) {
                 }
                 // Insere a nova pontuação
                 ranking[i].score = score;
-                // Copia o nome (truncando se necessário)
+                // Copia o nome (truncando((ensinamentos de arq0 valendo a pena)) se necessário)
                 strncpy_s(ranking[i].nome, sizeof(ranking[i].nome), nome, _TRUNCATE);
                 return;
             }
@@ -482,7 +482,7 @@ TelaJogo TelaRanking(void) {
 // Função para carregar o ranking a partir do arquivo binário
 void carregar_ranking(JogadorFinal ranking[]) {
     FILE* arquivo = NULL;
-    errno_t err = fopen_s(&arquivo, "assets/highscore.bin", "rb");
+    errno_t err = fopen_s(&arquivo, "assets/highscore.bin", "rb+");
 
     // Verifica se o arquivo foi aberto corretamente
     if (err != 0 || !arquivo) {
