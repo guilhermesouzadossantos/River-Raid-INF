@@ -40,7 +40,8 @@ typedef enum TelaJogo {
     SALVARESAIR,
     SALVAR,
     SAIRDEFINITIVO,
-    GAME_OVER
+    GAME_OVER,
+    NOVO_HIGH_SCORE
 } TelaJogo;
 
 // Structs jogador
@@ -76,6 +77,10 @@ double ultimo_movimento_helicopteros = 0.0;
 double intervalo_movimento_helicopteros = 0.8;
 double ultimo_movimento_barcos = 0.0;
 double intervalo_movimento_barcos = 0.8;
+JogadorFinal ranking[MAX_RANK];
+int novo_high_score = 0; // 1 se for um high score, 0 caso contrário
+char nome_novo_score[50] = { 0 }; // Buffer para entrada de nome
+int letra_atual_nome = 0; // Contador de caracteres do nome
 
 // Variáveis Globais de Combustível e Explosão
 float combustivel = 100.0f;
@@ -215,14 +220,17 @@ int colisao_missil(Mapa* mapa, int mx, int my, int* pontos) {
 }
 
 TelaJogo TelaGameOver(void) {
-    BeginDrawing();
 
+    BeginDrawing();
     ClearBackground(BLACK);
     DrawText("GAME OVER", 275, 275, 60, RED);
     DrawText(TextFormat("SCORE: %d", score_atual), 380, 370, 40, WHITE);
     DrawText("Pressione ENTER para ver o RANKING", 240, 440, 25, WHITE);
     EndDrawing();
-    if (IsKeyPressed(KEY_ENTER)) return MENU;
+
+    if (IsKeyPressed(KEY_ENTER)) {
+        return RANKING;
+    } // Vai para o ranking
     return GAME_OVER;
 }
 
@@ -345,6 +353,162 @@ TelaJogo TelaSalvareSair(void) {
     EndDrawing();
     return Tela;
 }
+
+
+// Função para salvar o ranking no arquivo binário
+void salvar_ranking(JogadorFinal ranking[]) {
+    FILE* arquivo = NULL;
+    errno_t err = fopen_s(&arquivo, "assets/highscore.bin", "ab+");
+
+    if (err != 0 || !arquivo) {
+        printf("ERRO: Nao foi possivel salvar highscore.bin\n");
+        return;
+    }
+
+    // Escreve o array de ranking no arquivo
+    fwrite(ranking, sizeof(JogadorFinal), MAX_RANK, arquivo);
+    fclose(arquivo);
+}
+
+// Função para inserir a nova pontuação no ranking (se for um high score)
+void inserir_no_ranking(JogadorFinal ranking[], int score, const char* nome) {
+    int i, j;
+    // Verifica se a pontuação é maior que a menor pontuação do ranking
+    if (score > ranking[MAX_RANK - 1].score) {
+        // Encontra a posição correta para inserção
+        for (i = 0; i < MAX_RANK; i++) {
+            if (score > ranking[i].score) {
+                // Desloca os elementos menores para baixo
+                for (j = MAX_RANK - 1; j > i; j--) {
+                    ranking[j] = ranking[j - 1];
+                }
+                // Insere a nova pontuação
+                ranking[i].score = score;
+                // Copia o nome (truncando se necessário)
+                strncpy_s(ranking[i].nome, sizeof(ranking[i].nome), nome, _TRUNCATE);
+                return;
+            }
+        }
+    }
+}
+
+
+// Tela para o jogador digitar o nome ao conseguir um High Score 
+TelaJogo TelaNovoHighScore(void) {
+    int key = GetCharPressed();
+    // Limite de 20 caracteres para o nome.
+    while (key > 0) {
+        if ((key >= 32) && (key <= 125) && (letra_atual_nome < 20)) {
+            nome_novo_score[letra_atual_nome] = (char)key;
+            letra_atual_nome++;
+        }
+        key = GetCharPressed();
+    }
+    nome_novo_score[letra_atual_nome] = '\0';
+
+    // Permite apagar com Backspace
+    if (IsKeyPressed(KEY_BACKSPACE)) {
+        letra_atual_nome--;
+        if (letra_atual_nome < 0) letra_atual_nome = 0;
+        nome_novo_score[letra_atual_nome] = '\0';
+    }
+
+    BeginDrawing();
+    ClearBackground(RIVER_RAID_BLUE);
+    DrawText("NOVO HIGH SCORE!", LARGURA / 2 - MeasureText("NOVO HIGH SCORE!", 50) / 2, 100, 50, GOLD);
+    DrawText(TextFormat("SCORE: %d", score_atual), LARGURA / 2 - MeasureText(TextFormat("SCORE: %d", score_atual), 30) / 2, 180, 30, WHITE);
+
+    DrawText("DIGITE SEU NOME (MAX 20):", LARGURA / 2 - MeasureText("DIGITE SEU NOME (MAX 20):", 30) / 2, 300, 30, YELLOW);
+
+    // Desenha a caixa de texto
+    DrawRectangle(LARGURA / 2 - 200, 350, 400, 50, WHITE);
+    DrawText(nome_novo_score, LARGURA / 2 - 190, 360, 30, BLACK);
+
+    // Desenha o cursor piscando
+    if (((int)(GetTime() * 2)) % 2 == 0) DrawText("_", LARGURA / 2 - 190 + MeasureText(nome_novo_score, 30), 360, 30, BLACK);
+
+    DrawText("Pressione ENTER para SALVAR", LARGURA / 2 - MeasureText("Pressione ENTER para SALVAR", 25) / 2, 450, 25, WHITE);
+    EndDrawing();
+
+    if (IsKeyPressed(KEY_ENTER) && letra_atual_nome > 0) {
+        nome_novo_score[letra_atual_nome] = '\0';
+
+        inserir_no_ranking(ranking, score_atual, nome_novo_score);
+        salvar_ranking(ranking);
+
+        // Reseta estados
+        novo_high_score = 0;
+        letra_atual_nome = 0;
+        nome_novo_score[0] = '\0';
+
+        return MENU; // Volta para o Menu Principal
+    }
+
+    return NOVO_HIGH_SCORE; // Permanece nesta tela
+}
+
+// Tela de Ranking
+TelaJogo TelaRanking(void) {
+    TelaJogo Tela = RANKING;
+    BeginDrawing();
+    ClearBackground(RIVER_RAID_BLUE);
+    DrawText("TOP 10 PILOTOS", LARGURA / 2 - MeasureText("TOP 10 PILOTOS", 40) / 2, 50, 40, YELLOW);
+    DrawText("Pressione ESC para voltar", LARGURA / 2 - MeasureText("Pressione ESC para voltar", 20) / 2, ALTURA - 30, 20, WHITE);
+
+    for (int i = 0; i < MAX_RANK; i++) {
+        Color cor = WHITE;
+        if (i == 0) cor = GOLD;
+        else if (i == 1) cor = YELLOW;
+        else if (i == 2) cor = YELLOW;
+
+        // Formato: 01. NOME (SCORE)
+        DrawText(TextFormat("%02d. %s", i + 1, ranking[i].nome), 100, 150 + i * 45, 30, cor);
+        DrawText(TextFormat("%d", ranking[i].score), LARGURA - 200, 150 + i * 45, 30, cor);
+    }
+
+    EndDrawing();
+    
+   
+    if (IsKeyPressed(KEY_ENTER)) {
+                Tela = MENU;
+				return Tela;
+    }
+
+	return Tela;
+}
+
+
+
+// Função para carregar o ranking a partir do arquivo binário
+void carregar_ranking(JogadorFinal ranking[]) {
+    FILE* arquivo = NULL;
+    errno_t err = fopen_s(&arquivo, "assets/highscore.bin", "rb");
+
+    // Verifica se o arquivo foi aberto corretamente
+    if (err != 0 || !arquivo) {
+        printf("AVISO: Nao foi possivel carregar highscore.bin. Inicializando ranking padrao.\n");
+        // Inicializa o ranking com valores padrão caso o arquivo não exista
+        for (int i = 0; i < MAX_RANK; i++) {
+            sprintf_s(ranking[i].nome, sizeof(ranking[i].nome), "---- %d", MAX_RANK - i);
+            ranking[i].score = 000;
+        }
+    }
+    else {
+        // Lê os dados do arquivo para a estrutura de ranking
+        size_t lidos = fread(ranking, sizeof(JogadorFinal), MAX_RANK, arquivo);
+        if (lidos < MAX_RANK) {
+            printf("AVISO: highscore.bin com dados incompletos. Inicializando o restante.\n");
+            // Preenche os restantes com valores padrão se o arquivo for menor
+            for (size_t i = lidos; i < MAX_RANK; i++) {
+                sprintf_s(ranking[i].nome, sizeof(ranking[i].nome), "---- %d", MAX_RANK - i);
+                ranking[i].score = 000;
+            }
+        }
+        fclose(arquivo);
+    }
+}
+
+
 
 int carregar_mapa(const char* nome_arquivo, Mapa* mapa) {
     FILE* arquivo = NULL;
@@ -561,17 +725,19 @@ void mover_helicopteros(Mapa* mapa) {
 }
 
 int main() {
+    FILE* arquivo;
     POSICAOX_NAVE = LARGURA / 2;
     POSICAOY_NAVE = ALTURA - 100;
     POSICAOX_MISSIL = -100;
     POSICAOY_MISSIL = -100;
     sprintf_s(texto, sizeof(texto), "River Raid INF - Fase %d", fase_atual);
-    JogadorFinal ranking[MAX_RANK];
-    FILE* arquivo;
+
 
     TelaJogo TelaAgora = TELA_INICIAL;
     InitWindow(LARGURA, ALTURA, "River Raid INF");
     SetTargetFPS(60);
+
+    carregar_ranking(ranking);
 
     if (!carregar_mapa("assets/fase1.txt", &mapa_atual)) {
         while (!WindowShouldClose()) {
@@ -635,7 +801,7 @@ int main() {
         case SALVAR: 
             TelaAgora = TelaIni(); 
         case RANKING:
-            
+            TelaAgora = TelaRanking();
             break;
         case NOVO_JOGO:
             if (!jogo_completo) {
@@ -678,12 +844,13 @@ int main() {
                     if (POSICAOY_NAVE + TILE_SIZE <= 0) {
                         if (carregar_proxima_fase()) {
                             int sx, sy;
-                            if (encontrar_pos_spawn(&mapa_atual, &sx, &sy)) {
-                                POSICAOX_NAVE = sx; POSICAOY_NAVE = sy;
+                            if(encontrar_pos_spawn(&mapa_atual, &sx, &sy)) {
+                                // POSICAOX_NAVE = sx; luiza: comentei essa linha pq era ela que tava dando aquele problema de quando ela mudava de fase. nao quis tirar a função toda pois tive medo
+                                POSICAOY_NAVE = sy;
                             }
-                            else {
-                                POSICAOX_NAVE = LARGURA / 2; POSICAOY_NAVE = ALTURA - 100;
-                            }
+                        else {
+                            POSICAOY_NAVE = ALTURA - 100;
+                        }
                             sprintf_s(texto, sizeof(texto), "River Raid INF - Fase %d", fase_atual);
                             break;
                         }
@@ -791,6 +958,7 @@ int main() {
                     if (jogo_completo) {
                         DrawRectangle(LARGURA / 2 - 150, ALTURA / 2 - 50, 300, 100, Fade(BLACK, 0.8f));
                         DrawText("JOGO COMPLETO!", LARGURA / 2 - 120, ALTURA / 2 - 30, 30, GREEN);
+                        TelaAgora = TelaNovoHighScore();
                     }
                     EndDrawing();
                 }
@@ -798,7 +966,12 @@ int main() {
             break;
 
         case GAME_OVER: 
-            TelaAgora = TelaGameOver(); 
+            TelaAgora = TelaGameOver();
+            // Lógica de transição para a tela de Novo High Score
+           
+            break;
+        case NOVO_HIGH_SCORE:
+            TelaAgora = TelaNovoHighScore();
             break;
         default: break;
         }

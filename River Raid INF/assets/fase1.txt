@@ -1,8 +1,8 @@
 TTTTTTTTT       TTTTTTTT
-TTTTTTTT   X      TTTTTT
+TTTTTTTT          TTTTTT
 TTTTTTT            TTTTT
 TTTTTT             TTTTT
-TTTTTT         X   TTTTT
+TTTTTT             TTTTT
 TTTTTTT            TTTTT
 TTTTTTTT         TTTTTTT
 TTTTTTTTT       TTTTTTTT
@@ -13,8 +13,8 @@ TTTTTT    TTTTTTT   TTTT
 TTTTT       TTTT     TTT
 TTTTT               TTTT
 TTTTT               TTTT
-TTTTT       X       TTTT
+TTTTT               TTTT
 TTTTTT              TTTT
-TTTTTTT            TTTTT
-TTTTTTTTT         TTTTTT
-TTTTTTTTTT   A  TTTTTTTT
+TTTTT              TTTTT
+TTTTTT            TTTTTT
+TTTTTTTT     A  TTTTTTTT

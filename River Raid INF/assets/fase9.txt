@@ -1,6 +1,6 @@
 TTTTTTTTT       TTTTTTTT
-TTTTTTTT  X     X TTTTTT
-TTTTTTT            TTTTT
+TTTTT             TTTTTT
+TTTTT              TTTTT
 TTTTTT     TT      TTTTT
 TTTTTT             TTTTT
 TTTTTTT     N      TTTTT
@@ -16,5 +16,5 @@ TTTTT   G           TTTT
 TTTTTTT G        TTTTTTT
 TTTTT   G        TTTTTTT
 TTTTT            TTTTTTT
-TTTTT       X    TTTTTTT
+TTTTT            TTTTTTT
 TTTTT            TTTTTTT
