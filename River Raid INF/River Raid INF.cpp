@@ -453,13 +453,13 @@ TelaJogo TelaRanking(void) {
     BeginDrawing();
     ClearBackground(RIVER_RAID_BLUE);
     DrawText("TOP 10 PILOTOS", LARGURA / 2 - MeasureText("TOP 10 PILOTOS", 40) / 2, 50, 40, YELLOW);
-    DrawText("Pressione ESC para voltar", LARGURA / 2 - MeasureText("Pressione ENTER para voltar", 20) / 2, ALTURA - 30, 20, WHITE);
+    DrawText("Pressione ENTER para voltar", LARGURA / 2 - MeasureText("Pressione ENTER para voltar", 20) / 2, ALTURA - 30, 20, WHITE);
 
     for (int i = 0; i < MAX_RANK; i++) {
         Color cor = WHITE;
         if (i == 0) cor = GOLD;
-        else if (i == 1) cor = YELLOW;
-        else if (i == 2) cor = YELLOW;
+        else if (i == 1) cor = GRAY;
+        else if (i == 2) cor = DARKBROWN;
 
         // Formato: 01. NOME (SCORE)
         DrawText(TextFormat("%02d. %s", i + 1, ranking[i].nome), 100, 150 + i * 45, 30, cor);
