@@ -2,11 +2,11 @@ TTTTT            TTTTTTT
 TTTTT            TTTTTTT
 TTTTT            TTTTTTT
 TTTTT     N      TTTTTTT
+TETTT            TTTTTTT
 TTTTT            TTTTTTT
 TTTTT   G        TTTTTTT
-TTTTT   G        TTTTTTT
-TTTTT   G        TTTTTTT
-TTTTT   G        TTTTTTT
+TTTTT            TTETTTT
+TTTTT            TTTTTTT
 TTTTT            TTTTTTT
 TTTTT      X     TTTTTTT
 TTTTT            TTTTTTT
@@ -17,4 +17,4 @@ TTTTT            TTTTTTT
 TTTTT            TTTTTTT
 TTTTT            TTTTTTT
 TTTTT            TTTTTTT
-TTTTT            TTTTTTT
+TTTTT            TTTETTT

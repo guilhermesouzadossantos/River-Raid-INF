@@ -100,6 +100,14 @@ int POSICAOX_MISSIL;
 int POSICAOY_MISSIL;
 char texto[128];
 
+// Áudios globais
+Music musica_menu;
+Music musica_jogo;
+Sound som_explosao;
+Sound som_ponte;
+Sound som_missil;
+Sound som_reabastecer;
+
 // Declarações das funções auxiliares
 void resetar_jogo(void);
 void adicionar_explosao(float x, float y); 
@@ -107,6 +115,7 @@ void atualizar_explosoes(float dt);
 
 // Função para criar explosão 
 void adicionar_explosao(float x, float y) {
+    PlaySound(som_explosao);
     for (int i = 0; i < MAX_EXPLOSOES; i++) {
         if (!lista_explosoes[i].ativo) {
             lista_explosoes[i].x = x;
@@ -208,10 +217,12 @@ int colisao_missil(Mapa* mapa, int mx, int my, int* pontos) {
         return 1;
     case 'P': // Destruição da Ponte
         *pontos += 200;
-        // Limpa a linha inteira da ponte
+        PlaySound(som_ponte);
+
+        // Limpa APENAS os blocos de ponte ('P'), substituindo por 'B' (Ponte Destruída)
         for (int x = 0; x < LARGURA_MAPA; x++) {
             if (mapa->quadradinhos[ty][x] == 'P') {
-                mapa->quadradinhos[ty][x] = ' ';
+                mapa->quadradinhos[ty][x] = 'B'; 
                 if (x % 2 == 0) adicionar_explosao((float)(x * TILE_SIZE), (float)(ty * TILE_SIZE));
             }
         }
@@ -571,20 +582,57 @@ void desenhar_mapa(Mapa* mapa, Texture2D sprites) {
     Rectangle NAVIO = { 12, 232, 133, 60 };
     Rectangle GAS = { 609, 60, 60, 100 };
     Rectangle PONTE = { 685, 64, 255, 95 };
+    Rectangle CASA = { 467, 61, 126, 98 };
+    Rectangle ESTRADA = { 265, 55, 65, 105 };
 
     for (int y = 0; y < ALTURA_MAPA; y++) {
+        //Verifica se esta linha tem uma ponte ativa ('P') ou destruída ('B')
+        int linha_com_ponte = 0;
+        for (int k = 0; k < LARGURA_MAPA; k++) {
+            // Verifica se existe 'P' OU 'B'
+            if (mapa->quadradinhos[y][k] == 'P' || mapa->quadradinhos[y][k] == 'B') {
+                linha_com_ponte = 1;
+                break;
+            }
+        }
+
         for (int x = 0; x < LARGURA_MAPA; x++) {
             char tile = mapa->quadradinhos[y][x];
             int screen_x = x * TILE_SIZE;
             int screen_y = y * TILE_SIZE;
             Rectangle destino = { (float)screen_x, (float)screen_y, TILE_SIZE, TILE_SIZE };
-            Rectangle NAVIO_destino = { (float)screen_x, (float)screen_y, TILE_SIZE, TILE_SIZE };
+
+            // Se a linha tem (ou teve) uma ponte, aplica a lógica de Estrada/Ponte
+            if (linha_com_ponte) {
+                if (tile == 'T' || tile == 'E') {
+                    DrawTexturePro(sprites, ESTRADA, destino, Vector2{ 0, 0 }, 0, WHITE);
+
+                    // Se for casa 'E', redesenha a casa por cima da estrada
+                    if (tile == 'E') {
+                        DrawTexturePro(sprites, CASA, destino, Vector2{ 0, 0 }, 0, WHITE);
+                    }
+                    continue;
+                }
+                // Agora inclui 'B' (Ponte Destruída). Tiles 'B' desenham apenas a água.
+                else if (tile == ' ' || tile == 'P' || tile == 'B' || tile == 'N' || tile == 'X' || tile == 'G') {
+
+                    DrawRectangle(screen_x, screen_y, TILE_SIZE, TILE_SIZE, RIVER_RAID_BLUE); // Fundo do rio
+
+                    // Se for 'P' (ponte ativa), desenha o sprite da ponte.
+                    if (tile == 'P') {
+                        DrawTexturePro(sprites, PONTE, destino, Vector2{ 0, 0 }, 0, WHITE);
+                    }
+                    // Se for 'B' (ponte destruída), desenha apenas a água (fundo azul)
+
+                    continue;
+                }
+            }
 
             switch (tile) {
             case 'T': DrawRectangle(screen_x, screen_y, TILE_SIZE, TILE_SIZE, DARKGREEN); break;
             case 'N':
-                DrawRectangle(screen_x, screen_y, TILE_SIZE, TILE_SIZE, RIVER_RAID_BLUE); // Fundo
-                DrawTexturePro(sprites, NAVIO, NAVIO_destino, Vector2{ 0, 0 }, 0, WHITE);
+                DrawRectangle(screen_x, screen_y, TILE_SIZE, TILE_SIZE, RIVER_RAID_BLUE);
+                DrawTexturePro(sprites, NAVIO, destino, Vector2{ 0, 0 }, 0, WHITE);
                 break;
             case 'X':
                 DrawRectangle(screen_x, screen_y, TILE_SIZE, TILE_SIZE, RIVER_RAID_BLUE);
@@ -597,6 +645,10 @@ void desenhar_mapa(Mapa* mapa, Texture2D sprites) {
             case 'P':
                 DrawRectangle(screen_x, screen_y, TILE_SIZE, TILE_SIZE, RIVER_RAID_BLUE);
                 DrawTexturePro(sprites, PONTE, destino, Vector2{ 0, 0 }, 0, WHITE);
+                break;
+            case 'E':
+                DrawRectangle(screen_x, screen_y, TILE_SIZE, TILE_SIZE, DARKGREEN);
+                DrawTexturePro(sprites, CASA, destino, Vector2{ 0, 0 }, 0, WHITE);
                 break;
             case ' ':
             default: DrawRectangle(destino.x, destino.y, TILE_SIZE, TILE_SIZE, RIVER_RAID_BLUE); break;
@@ -742,8 +794,25 @@ int main() {
     TelaJogo TelaAgora = TELA_INICIAL;
     InitWindow(LARGURA, ALTURA, "River Raid INF");
     SetTargetFPS(60);
-
     carregar_ranking(ranking);
+
+    InitAudioDevice(); 
+
+    musica_menu = LoadMusicStream("assets/menu.mp3");
+    musica_jogo = LoadMusicStream("assets/jogo.mp3");
+    som_explosao = LoadSound("assets/explosao.mp3");
+    som_ponte = LoadSound("assets/ponte.mp3");
+    som_missil = LoadSound("assets/missil.mp3");
+    som_reabastecer = LoadSound("assets/reabastecer.mp3");
+
+    SetMusicVolume(musica_menu, 0.5f);
+    SetMusicVolume(musica_jogo, 0.4f);
+    SetSoundVolume(som_explosao, 0.4f);
+    SetSoundVolume(som_ponte, 0.8f);
+    SetSoundVolume(som_missil, 0.4f);
+    SetSoundVolume(som_explosao, 0.4f);
+
+
 
     if (!carregar_mapa("assets/fase1.txt", &mapa_atual)) {
         while (!WindowShouldClose()) {
@@ -764,10 +833,15 @@ int main() {
     Rectangle NAVE_DIR = { 161, 70, 56, 52 };
     Rectangle MISSIL = { 0, 70, 40, 50 };
 
+    Rectangle CASA = { 280, 120, 100, 60 };   
+    Rectangle ESTRADA = { 500, 64, 40, 95 }; 
+
     // Frames da explosão
     Rectangle FRAMES_EXPLOSAO[5] = {
-        { 220, 60, 45, 45 }, { 270, 60, 45, 45 }, { 320, 60, 45, 45 },
-        { 370, 60, 45, 45 }, { 420, 60, 45, 45 }
+        { 10, 320, 50, 50 },  
+        { 20, 310, 50, 50 },     
+        { 30, 320, 50, 50 },  
+        { 20, 330, 50, 50 }, 
     };
 
     TelaJogo TelaAnterior = (TelaJogo)-1;
@@ -775,14 +849,22 @@ int main() {
     while (!WindowShouldClose()) {
         float dt = GetFrameTime();
 
-        if (TelaAgora != TelaAnterior) {
-            if (TelaAgora == NOVO_JOGO) {
-                sprintf_s(texto, sizeof(texto), "River Raid INF - Fase %d", fase_atual);
-                int sx, sy;
-                if (encontrar_pos_spawn(&mapa_atual, &sx, &sy)) {
-                    POSICAOX_NAVE = sx; POSICAOY_NAVE = sy;
-                }
+        // Gerenciamento de música
+        if (TelaAgora == NOVO_JOGO && !jogo_completo) {
+            // Se estiver jogando, toca a música do jogo e para a do menu
+            if (!IsMusicStreamPlaying(musica_jogo)) {
+                PlayMusicStream(musica_jogo);
+                StopMusicStream(musica_menu);
             }
+            UpdateMusicStream(musica_jogo); 
+        }
+        else {
+            // Em qualquer outra tela (Menu, GameOver, Ranking), toca música do menu
+            if (!IsMusicStreamPlaying(musica_menu)) {
+                PlayMusicStream(musica_menu);
+                StopMusicStream(musica_jogo);
+            }
+            UpdateMusicStream(musica_menu);
         }
 
         switch (TelaAgora) {
@@ -853,11 +935,14 @@ int main() {
                         player_explodindo = 1;
                     }
 
-                    // ADIÇÃO: Recarga (passar por cima do 'G')
+                    // Recarga (passar por cima do 'G')
                     int cx = (POSICAOX_NAVE + TILE_SIZE / 2) / TILE_SIZE;
                     int cy = (POSICAOY_NAVE + TILE_SIZE / 2) / TILE_SIZE;
                     if (cx >= 0 && cx < LARGURA_MAPA && cy >= 0 && cy < ALTURA_MAPA) {
                         if (mapa_atual.quadradinhos[cy][cx] == 'G') {
+                            if (combustivel < MAX_COMBUSTIVEL) { // Garante que só toque se estiver subindo
+                                PlaySound(som_reabastecer);
+                            }
                             combustivel += 40.0f * dt;
                             if (combustivel > MAX_COMBUSTIVEL) combustivel = MAX_COMBUSTIVEL;
                         }
@@ -924,6 +1009,7 @@ int main() {
                     if (IsKeyPressed(KEY_SPACE) && POSICAOY_MISSIL < -50) {
                         POSICAOX_MISSIL = POSICAOX_NAVE + (TILE_SIZE / 4);
                         POSICAOY_MISSIL = POSICAOY_NAVE - 40;
+                        PlaySound(som_missil);
                     }
 
                     if (POSICAOY_MISSIL > -50) {
@@ -954,7 +1040,18 @@ int main() {
                         // Só desenha a nave se ela não estiver explodindo
                         if (!player_explodindo) {
                             Rectangle destNave = { (float)POSICAOX_NAVE, (float)POSICAOY_NAVE, TILE_SIZE, TILE_SIZE };
-                            DrawTexturePro(SPRITES, nave_source, destNave, Vector2{ 0, 0 }, 0, WHITE);
+                            
+                            // Sprite "pisca" quando está invencível depois de tomar dano
+                            Color corNave = WHITE;
+                            if (invencivel) {
+                                
+                                // Pisca alterando a transparência a cada fração de segundo
+                                if (((int)(GetTime() * 10)) % 2 == 0) {
+                                    corNave = ColorAlpha(WHITE, 0.3f); // Fica transparente
+                                }
+                            }
+
+                            DrawTexturePro(SPRITES, nave_source, destNave, Vector2{ 0, 0 }, 0, corNave);
                         }
                         if (POSICAOY_MISSIL > -50) {
                             Rectangle destMissil = { (float)POSICAOX_MISSIL, (float)POSICAOY_MISSIL, TILE_SIZE / 2, TILE_SIZE };
@@ -1010,6 +1107,15 @@ int main() {
     }
 
     if (SPRITES.id != 0) UnloadTexture(SPRITES);
+
+    UnloadMusicStream(musica_menu);
+    UnloadMusicStream(musica_jogo);
+    UnloadSound(som_explosao);
+    UnloadSound(som_ponte);
+    UnloadSound(som_missil);
+    UnloadSound(som_reabastecer);
+    CloseAudioDevice();
+
     CloseWindow();
     return 0;
 }
