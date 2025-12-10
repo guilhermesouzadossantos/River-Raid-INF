@@ -391,7 +391,7 @@ int carregar_saves(Jogador saves[]) {
             printf("AVISO: saves.bin com dados incompletos. Inicializando o restante.\n");
             // Preenche os restantes com valores padrão se o arquivo for menor
             for (size_t i = lidos; i < 10; i++) {
-                sprintf_s(saves[i].nome, sizeof(saves[i].nome), "---- %d", MAX_RANK - i);
+                sprintf_s(saves[i].nome, sizeof(saves[i].nome), "novo save %d", MAX_RANK - i);
                 saves[i].nivel = 000;
                 saves_carregados++;
             }
