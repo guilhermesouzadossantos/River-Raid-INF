@@ -47,9 +47,11 @@ typedef enum TelaJogo {
 typedef struct {
     char nome[50];
     int vidas;
-    int combustivel;
+    float combustivel;
     int nivel;
     int score;
+    int posx;
+    int posy;
 } Jogador;
 
 typedef struct {
@@ -80,6 +82,9 @@ double intervalo_movimento_helicopteros = 0.8;
 double ultimo_movimento_barcos = 0.0;
 double intervalo_movimento_barcos = 0.8;
 JogadorFinal ranking[MAX_RANK];
+Jogador salvar;
+Jogador saves[10]; 
+int saves_carregados = 0;
 int novo_high_score = 0; // 1 se for um high score, 0 caso contrário
 char nome_novo_score[50] = { 0 }; // Buffer para entrada de nome
 int letra_atual_nome = 0; // Contador de caracteres do nome
@@ -370,6 +375,201 @@ TelaJogo TelaSalvareSair(void) {
 }
 
 
+int carregar_saves(Jogador saves[]) {
+    FILE* arquivo = NULL;
+    errno_t err = fopen_s(&arquivo, "assets/saves.bin", "rb+");
+    int saves_carregados = 0;
+
+    // Verifica se o arquivo foi aberto corretamente
+    if (err != 0 || !arquivo) {
+        printf("AVISO: Nao foi possivel carregar saves.bin. Inicializando saves padrao.\n");
+    }
+    else {
+        // Lê os dados do arquivo para a estrutura de ranking
+        size_t lidos = fread(saves, sizeof(Jogador), MAX_RANK, arquivo);
+        if (lidos < MAX_RANK) {
+            printf("AVISO: saves.bin com dados incompletos. Inicializando o restante.\n");
+            // Preenche os restantes com valores padrão se o arquivo for menor
+            for (size_t i = lidos; i < 10; i++) {
+                sprintf_s(saves[i].nome, sizeof(saves[i].nome), "---- %d", MAX_RANK - i);
+                saves[i].nivel = 000;
+                saves_carregados++;
+            }
+        }
+        fclose(arquivo);
+        saves_carregados = 10 - saves_carregados;
+    }
+    return saves_carregados;
+}
+
+TelaJogo TelaCarregarJogo(Jogador saves[]) {
+    TelaJogo Tela = CARREGAR_JOGO;
+    int total_opcoes = 10;
+    BeginDrawing();
+    ClearBackground(RIVER_RAID_BLUE);
+    DrawText("JOGOS SALVOS", LARGURA / 2 - MeasureText("JOGOS SALVOS", 40) / 2, 50, 40, YELLOW);
+    DrawText("Pressione ESPACO para voltar", LARGURA / 2 - MeasureText("Pressione ESPACO para voltar", 20) / 2, ALTURA - 30, 20, WHITE);
+
+    for (int i = 0; i < MAX_RANK; i++) {
+        Color cor = WHITE;
+        // Formato: 01. NOME (SCORE)
+        DrawText(TextFormat("%02d. %s", i + 1, saves[i].nome), 100, 150 + i * 45, 30, cor);
+        DrawText(TextFormat("%d", saves[i].nivel), LARGURA - 200, 150 + i * 45, 30, cor);
+    }
+    for (int i = 0; i < total_opcoes; i++) {
+        if (i == op_saida_menu) DrawRectangle(800, (150 + i * 45) + 10, 8, 8, YELLOW);
+    }
+    if (IsKeyPressed(KEY_UP)) {
+        op_saida_menu--;
+        if (op_saida_menu < 0) op_saida_menu = total_opcoes - 1;
+    }
+    if (IsKeyPressed(KEY_DOWN)) {
+        op_saida_menu++;
+        if (op_saida_menu >= total_opcoes) op_saida_menu = 0;
+    }
+    if (IsKeyPressed(KEY_ENTER)) {
+        switch (op_saida_menu) {
+        case 0: 
+			saves[0].posx = POSICAOX_NAVE;
+			saves[0].posy = POSICAOY_NAVE; 
+			saves[0].combustivel = combustivel; 
+			saves[0].vidas = vidas_restantes;
+			saves[0].score = score_atual;
+			saves[0].nivel = fase_atual;
+			return NOVO_JOGO;
+            break;
+        case 1:
+            saves[1].posx = POSICAOX_NAVE;
+            saves[1].posy = POSICAOY_NAVE;
+            saves[1].combustivel = combustivel;
+            saves[1].vidas = vidas_restantes;
+            saves[1].score = score_atual;
+            saves[1].nivel = fase_atual;
+            return NOVO_JOGO;
+            break;
+        case 2:
+            saves[2].posx = POSICAOX_NAVE;
+            saves[2].posy = POSICAOY_NAVE;
+            saves[2].combustivel = combustivel;
+            saves[2].vidas = vidas_restantes;
+            saves[2].score = score_atual;
+            saves[2].nivel = fase_atual;
+            return NOVO_JOGO;
+            break;
+        case 3: 
+            saves[3].posx = POSICAOX_NAVE;
+            saves[3].posy = POSICAOY_NAVE;
+            saves[3].combustivel = combustivel;
+            saves[3].vidas = vidas_restantes;
+            saves[3].score = score_atual;
+            saves[3].nivel = fase_atual;
+            return NOVO_JOGO;
+            break;
+        case 4:
+            saves[4].posx = POSICAOX_NAVE;
+            saves[4].posy = POSICAOY_NAVE;
+            saves[4].combustivel = combustivel;
+            saves[4].vidas = vidas_restantes;
+            saves[4].score = score_atual;
+            saves[4].nivel = fase_atual;
+            return NOVO_JOGO;
+            break;
+        case 5: 
+            saves[5].posx = POSICAOX_NAVE;
+            saves[5].posy = POSICAOY_NAVE;
+            saves[5].combustivel = combustivel;
+            saves[5].vidas = vidas_restantes;
+            saves[5].score = score_atual;
+            saves[5].nivel = fase_atual;
+            return NOVO_JOGO;
+            break;
+        case 6:
+            saves[6].posx = POSICAOX_NAVE;
+            saves[6].posy = POSICAOY_NAVE;
+            saves[6].combustivel = combustivel;
+            saves[6].vidas = vidas_restantes;
+            saves[6].score = score_atual;
+            saves[6].nivel = fase_atual;
+            return NOVO_JOGO;
+            break;
+        case 7: 
+            saves[7].posx = POSICAOX_NAVE;
+            saves[7].posy = POSICAOY_NAVE;
+            saves[7].combustivel = combustivel;
+            saves[7].vidas = vidas_restantes;
+            saves[7].score = score_atual;
+            saves[7].nivel = fase_atual;
+            return NOVO_JOGO;
+            break;
+        case 8: 
+            saves[8].posx = POSICAOX_NAVE;
+            saves[8].posy = POSICAOY_NAVE;
+            saves[8].combustivel = combustivel;
+            saves[8].vidas = vidas_restantes;
+            saves[8].score = score_atual;
+            saves[8].nivel = fase_atual;
+            return NOVO_JOGO;
+            break;
+        case 9: 
+            saves[9].posx = POSICAOX_NAVE;
+            saves[9].posy = POSICAOY_NAVE;
+            saves[9].combustivel = combustivel;
+            saves[9].vidas = vidas_restantes;
+            saves[9].score = score_atual;
+            saves[9].nivel = fase_atual;
+            return NOVO_JOGO;
+            break;
+        }
+    }
+    EndDrawing();
+
+    if (IsKeyPressed(KEY_SPACE)) {
+        return TELA_INICIAL;
+    }
+
+    return Tela;
+}
+
+void inserir_saves(Jogador saves[], const char* nome, int savescarregaodos, int nivel) {
+    int i, j;
+    if (nivel > saves[MAX_RANK - 1].nivel) {
+        // Encontra a posição correta para inserção
+        for (i = 0; i < MAX_RANK; i++) {
+            if (nivel > saves[i].nivel) {
+                // Desloca os elementos menores para baixo
+                for (j = MAX_RANK - 1; j > i; j--) {
+                    saves[j] = saves[j - 1];
+                }
+                // Insere os dados
+                saves[i].nivel = nivel;
+                saves[i].vidas = vidas_restantes;
+                saves[i].combustivel = combustivel;
+                saves[i].score = score_atual;
+				saves[i].posx = POSICAOX_NAVE;
+				saves[i].posy = POSICAOY_NAVE;
+                // Copia o nome (truncando((ensinamentos de arq0 valendo a pena)) se necessário)
+                strncpy_s(saves[i].nome, sizeof(ranking[i].nome), nome, _TRUNCATE);
+                return;
+            }
+        }
+    }
+}
+
+void salvar_saves(Jogador saves[]) {
+    FILE* arquivo = NULL;
+    errno_t err = fopen_s(&arquivo, "assets/saves.bin", "wb+");
+    //luiza: tive que mexer umas 500 vezes aqui pq tava dando erro toda vez pq eu tava usando ab
+    if (err != 0 || !arquivo) {
+        printf("ERRO: Nao foi possivel salvar saves.bin\n");
+        return;
+    }
+
+    // Escreve o array de ranking no arquivo
+    fwrite(saves, sizeof(Jogador), MAX_RANK, arquivo);
+    fclose(arquivo);
+}
+
+
 // Função para salvar o ranking no arquivo binário
 void salvar_ranking(JogadorFinal ranking[]) {
     FILE* arquivo = NULL;
@@ -407,6 +607,65 @@ void inserir_no_ranking(JogadorFinal ranking[], int score, const char* nome) {
     }
 }
 
+TelaJogo TelaSalvar() {
+
+    int key = GetCharPressed();
+    // Limite de 20 caracteres para o nome.
+    while (key > 0) {
+        if ((key >= 32) && (key <= 125) && (letra_atual_nome < 20)) {
+            nome_novo_score[letra_atual_nome] = (char)key;
+            letra_atual_nome++;
+        }
+        key = GetCharPressed();
+    }
+    nome_novo_score[letra_atual_nome] = '\0';
+
+    // Permite apagar com Backspace
+    if (IsKeyPressed(KEY_BACKSPACE)) {
+        letra_atual_nome--;
+        if (letra_atual_nome < 0) letra_atual_nome = 0;
+        nome_novo_score[letra_atual_nome] = '\0';
+    }
+
+    BeginDrawing();
+    ClearBackground(RIVER_RAID_BLUE);
+    DrawText("Salvar Jogo", LARGURA / 2 - MeasureText("Salvar Jogo", 50) / 2, 100, 50, GOLD);
+    DrawText(TextFormat("NIVEL: %d", fase_atual), LARGURA / 2 - MeasureText(TextFormat("NIVEL: %d", fase_atual), 30) / 2, 170, 20, WHITE);
+    DrawText(TextFormat("VIDAS: %d", vidas_restantes), LARGURA / 2 - MeasureText(TextFormat("VIDAS: %d", vidas_restantes), 30) / 2, 190, 20, WHITE);
+    DrawText(TextFormat("SCORE: %d", score_atual), LARGURA / 2 - MeasureText(TextFormat("SCORE: %d", score_atual), 30) / 2, 210, 20, WHITE);
+
+
+
+    DrawText("Digite seu nome (MAX 20):", LARGURA / 2 - MeasureText("Digite seu nome (MAX 20):", 30) / 2, 300, 30, YELLOW);
+
+    // Desenha a caixa de texto
+    DrawRectangle(LARGURA / 2 - 200, 350, 400, 50, WHITE);
+    DrawText(nome_novo_score, LARGURA / 2 - 190, 360, 30, BLACK);
+
+    // Desenha o cursor piscando
+    if (((int)(GetTime() * 2)) % 2 == 0) DrawText("_", LARGURA / 2 - 190 + MeasureText(nome_novo_score, 30), 360, 30, BLACK);
+
+    DrawText("Pressione ENTER para SALVAR", LARGURA / 2 - MeasureText("Pressione ENTER para SALVAR", 25) / 2, 450, 25, WHITE);
+    EndDrawing();
+
+    if (IsKeyPressed(KEY_ENTER) && letra_atual_nome > 0) {
+        nome_novo_score[letra_atual_nome] = '\0';
+
+        inserir_saves(saves, nome_novo_score, saves_carregados, fase_atual);
+        salvar_saves(saves);
+
+        // Reseta estados
+        novo_high_score = 0;
+        letra_atual_nome = 0;
+        nome_novo_score[0] = '\0';
+
+        return TELA_INICIAL; // Volta para o Menu Principal
+    }
+
+    return SALVAR; // Permanece nesta tela
+}
+
+
 
 // Tela para o jogador digitar o nome ao conseguir um High Score 
 TelaJogo TelaNovoHighScore(void) {
@@ -433,7 +692,7 @@ TelaJogo TelaNovoHighScore(void) {
     DrawText("NOVO HIGH SCORE!", LARGURA / 2 - MeasureText("NOVO HIGH SCORE!", 50) / 2, 100, 50, GOLD);
     DrawText(TextFormat("SCORE: %d", score_atual), LARGURA / 2 - MeasureText(TextFormat("SCORE: %d", score_atual), 30) / 2, 180, 30, WHITE);
 
-    DrawText("DIGITE SEU NOME (MAX 20):", LARGURA / 2 - MeasureText("DIGITE SEU NOME (MAX 20):", 30) / 2, 300, 30, YELLOW);
+    DrawText("Digite seu nome (MAX 20):", LARGURA / 2 - MeasureText("Digite seu nome (MAX 20):", 30) / 2, 300, 30, YELLOW);
 
     // Desenha a caixa de texto
     DrawRectangle(LARGURA / 2 - 200, 350, 400, 50, WHITE);
@@ -794,6 +1053,7 @@ int main() {
     InitWindow(LARGURA, ALTURA, "River Raid INF");
     SetTargetFPS(60);
     carregar_ranking(ranking);
+    saves_carregados=carregar_saves(saves);
 
     InitAudioDevice(); 
 
@@ -875,7 +1135,7 @@ int main() {
             TelaAgora = TelaMenu();
             break;
         case CARREGAR_JOGO: 
-            TelaAgora = TelaIni(); 
+            TelaAgora = TelaCarregarJogo(saves);
             break;
         case SAIR: 
             TelaAgora = TelaSaida(); 
@@ -887,7 +1147,8 @@ int main() {
             TelaAgora = TelaSalvareSair(); 
             break;
         case SALVAR: 
-            TelaAgora = TelaIni(); 
+            TelaAgora = TelaSalvar();
+            break;
         case RANKING:
             TelaAgora = TelaRanking();
             break;
