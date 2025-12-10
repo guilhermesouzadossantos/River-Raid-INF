@@ -441,7 +441,7 @@ TelaJogo TelaNovoHighScore(void) {
         letra_atual_nome = 0;
         nome_novo_score[0] = '\0';
 
-        return MENU; // Volta para o Menu Principal
+        return TELA_INICIAL; // Volta para o Menu Principal
     }
 
     return NOVO_HIGH_SCORE; // Permanece nesta tela
@@ -453,7 +453,7 @@ TelaJogo TelaRanking(void) {
     BeginDrawing();
     ClearBackground(RIVER_RAID_BLUE);
     DrawText("TOP 10 PILOTOS", LARGURA / 2 - MeasureText("TOP 10 PILOTOS", 40) / 2, 50, 40, YELLOW);
-    DrawText("Pressione ESC para voltar", LARGURA / 2 - MeasureText("Pressione ESC para voltar", 20) / 2, ALTURA - 30, 20, WHITE);
+    DrawText("Pressione ESC para voltar", LARGURA / 2 - MeasureText("Pressione ENTER para voltar", 20) / 2, ALTURA - 30, 20, WHITE);
 
     for (int i = 0; i < MAX_RANK; i++) {
         Color cor = WHITE;
@@ -468,13 +468,11 @@ TelaJogo TelaRanking(void) {
 
     EndDrawing();
     
+	if (IsKeyPressed(KEY_ENTER)) {
+		return TELA_INICIAL;
+        }
    
-    if (IsKeyPressed(KEY_ENTER)) {
-                Tela = MENU;
-				return Tela;
-    }
-
-	return Tela;
+    return Tela;
 }
 
 
