@@ -4,7 +4,7 @@ TETTT               TTTT
 TTTTTT           TTTTTTT
 TTTTTTT          TTTTTTT
 TTTTT          TTTTTTTTT
-TTTTT            TTTTTTT
+TTTTT  G         TTTTTTT
 TTTTT      N    TTTTTTTT
 TTTTT           TTTTTTTT
 TTTT   X   TT    TTTETTT
@@ -13,9 +13,7 @@ TTT              TTTTTTT
 TTTTT            TTTTTTT
 TTTTTT          TTTTTTTT
 TTTTT           TTTTTTTT
-TTTTT           TTTTTTTT
+TTTTT       G   TTTTTTTT
 TT               TTTTTTT
 TTT              TTTTTTT
 TTT             TTTTTTTT
-TTT             TTTTTTTT
-
