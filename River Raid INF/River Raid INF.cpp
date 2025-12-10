@@ -13,6 +13,7 @@
 #define LARGURA_MAPA 48
 #define ALTURA_MAPA 40
 #define MAX_EXPLOSOES 20 //  Máximo de explosões simultâneas
+#define MAX_RANK 10
 
 // Menu 
 int opcao_menu = 0;
@@ -72,12 +73,14 @@ int jogo_completo = 0;
 int velocidade_nave = 3;
 int score_atual = 0;
 double ultimo_movimento_helicopteros = 0.0;
-double intervalo_movimento_helicopteros = 0.5;
+double intervalo_movimento_helicopteros = 0.8;
+double ultimo_movimento_barcos = 0.0;
+double intervalo_movimento_barcos = 0.8;
 
 // Variáveis Globais de Combustível e Explosão
 float combustivel = 100.0f;
 const float MAX_COMBUSTIVEL = 100.0f;
-const float CONSUMO_GASOLINA = 10.0f; // Consumo por segundo
+const float CONSUMO_GASOLINA = 3.0f; // Consumo por segundo considerando um gasto de pouco mais de 10 por mapa
 ObjExplosao lista_explosoes[MAX_EXPLOSOES];
 int player_explodindo = 0; // Estado para travar o jogo enquanto a nave explode
 float timer_gameover = 0.0f;
@@ -196,7 +199,7 @@ int colisao_missil(Mapa* mapa, int mx, int my, int* pontos) {
         adicionar_explosao((float)(tx * TILE_SIZE), (float)(ty * TILE_SIZE));
         return 1;
     case 'P': // Destruição da Ponte
-        *pontos += 500;
+        *pontos += 200;
         // Limpa a linha inteira da ponte
         for (int x = 0; x < LARGURA_MAPA; x++) {
             if (mapa->quadradinhos[ty][x] == 'P') {
@@ -213,8 +216,9 @@ int colisao_missil(Mapa* mapa, int mx, int my, int* pontos) {
 
 TelaJogo TelaGameOver(void) {
     BeginDrawing();
+
     ClearBackground(BLACK);
-    DrawText("GAME OVER", 350, 300, 60, RED);
+    DrawText("GAME OVER", 275, 275, 60, RED);
     DrawText(TextFormat("SCORE: %d", score_atual), 380, 370, 40, WHITE);
     DrawText("Pressione ENTER para ver o RANKING", 240, 440, 25, WHITE);
     EndDrawing();
@@ -226,6 +230,7 @@ TelaJogo TelaIni(void) {
     Texture2D SPRITES = LoadTexture("assets/sprites.png");
     Rectangle NAVE = { 103, 70,  56, 52 };
     TelaJogo Tela = TELA_INICIAL;
+
     BeginDrawing();
     ClearBackground(RIVER_RAID_BLUE);
     DrawText("RiverINF", 500, 375, 90, YELLOW);
@@ -234,8 +239,10 @@ TelaJogo TelaIni(void) {
     DrawTexturePro(SPRITES, NAVE, destNave, Vector2{ 0, 0 }, 0, WHITE);
     if (IsKeyPressed(KEY_ENTER)) Tela = MENU;
     EndDrawing();
+
     return Tela;
 }
+
 
 TelaJogo TelaMenu(void) {
     TelaJogo Tela = MENU;
@@ -255,9 +262,15 @@ TelaJogo TelaMenu(void) {
             resetar_jogo();
             Tela = NOVO_JOGO;
             break;
-        case 1: Tela = CARREGAR_JOGO; break;
-        case 2: Tela = RANKING; break;
-        case 3: Tela = SAIR; break;
+        case 1:
+            Tela = CARREGAR_JOGO;
+            break;
+        case 2: 
+            Tela = RANKING; 
+            break;
+        case 3: 
+            Tela = SAIR; 
+            break;
         }
     }
     BeginDrawing();
@@ -425,7 +438,7 @@ void desenhar_mapa(Mapa* mapa, Texture2D sprites) {
     }
 }
 
-int posicao_valida_nave(int pos_x, int pos_y, Mapa* mapa) {
+ int posicao_valida_nave(int pos_x, int pos_y, Mapa* mapa) {
     int tile_x = pos_x / TILE_SIZE;
     int tile_y = pos_y / TILE_SIZE;
     if (tile_x < 0 || tile_x >= LARGURA_MAPA || tile_y < 0 || tile_y >= ALTURA_MAPA) return 0;
@@ -508,10 +521,29 @@ void resetar_jogo(void) {
         POSICAOY_NAVE = sy;
     }
 }
-
+void mover_barcos(Mapa* mapa) {
+    double tempo_atual = GetTime();
+    if (tempo_atual - ultimo_movimento_barcos < intervalo_movimento_barcos) 
+        return;
+    ultimo_movimento_barcos = tempo_atual;
+    for (int y = 0; y < ALTURA_MAPA; y++) {
+        for (int x = 0; x < LARGURA_MAPA; x++) {
+            if (mapa->quadradinhos[y][x] == 'N') {
+                int direcao = GetRandomValue(-1, 1);
+                if (direcao == 0) continue;
+                int novo_x = x + direcao;
+                if (novo_x >= 0 && novo_x < LARGURA_MAPA && mapa->quadradinhos[y][novo_x] == ' ') {
+                    mapa->quadradinhos[y][x] = ' ';
+                    mapa->quadradinhos[y][novo_x] = 'N';
+                }
+            }
+        }
+    }
+}
 void mover_helicopteros(Mapa* mapa) {
     double tempo_atual = GetTime();
-    if (tempo_atual - ultimo_movimento_helicopteros < intervalo_movimento_helicopteros) return;
+    if (tempo_atual - ultimo_movimento_helicopteros < intervalo_movimento_helicopteros) 
+        return;
     ultimo_movimento_helicopteros = tempo_atual;
     for (int y = 0; y < ALTURA_MAPA; y++) {
         for (int x = 0; x < LARGURA_MAPA; x++) {
@@ -534,6 +566,8 @@ int main() {
     POSICAOX_MISSIL = -100;
     POSICAOY_MISSIL = -100;
     sprintf_s(texto, sizeof(texto), "River Raid INF - Fase %d", fase_atual);
+    JogadorFinal ranking[MAX_RANK];
+    FILE* arquivo;
 
     TelaJogo TelaAgora = TELA_INICIAL;
     InitWindow(LARGURA, ALTURA, "River Raid INF");
@@ -580,13 +614,29 @@ int main() {
         }
 
         switch (TelaAgora) {
-        case TELA_INICIAL: TelaAgora = TelaIni(); break;
-        case MENU: TelaAgora = TelaMenu(); break;
-        case CARREGAR_JOGO: TelaAgora = TelaIni(); break;
-        case SAIR: TelaAgora = TelaSaida(); break;
-        case SAIRDEFINITIVO: CloseWindow(); return 1;
-        case SALVARESAIR: TelaAgora = TelaSalvareSair(); break;
-        case SALVAR: TelaAgora = TelaIni(); break;
+        case TELA_INICIAL: 
+            TelaAgora = TelaIni(); 
+            break;
+        case MENU: 
+            TelaAgora = TelaMenu();
+            break;
+        case CARREGAR_JOGO: 
+            TelaAgora = TelaIni(); 
+            break;
+        case SAIR: 
+            TelaAgora = TelaSaida(); 
+            break;
+        case SAIRDEFINITIVO: 
+            CloseWindow(); 
+            return 1;
+        case SALVARESAIR: 
+            TelaAgora = TelaSalvareSair(); 
+            break;
+        case SALVAR: 
+            TelaAgora = TelaIni(); 
+        case RANKING:
+            
+            break;
         case NOVO_JOGO:
             if (!jogo_completo) {
 
@@ -620,6 +670,7 @@ int main() {
 
                     POSICAOY_NAVE -= velocidade_nave;
                     mover_helicopteros(&mapa_atual);
+                    mover_barcos(&mapa_atual);
 
                     // Atualiza explosões dos inimigos
                     atualizar_explosoes(dt);
@@ -746,7 +797,9 @@ int main() {
             }
             break;
 
-        case GAME_OVER: TelaAgora = TelaGameOver(); break;
+        case GAME_OVER: 
+            TelaAgora = TelaGameOver(); 
+            break;
         default: break;
         }
         TelaAnterior = TelaAgora;
