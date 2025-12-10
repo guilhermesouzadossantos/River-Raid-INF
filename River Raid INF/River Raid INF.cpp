@@ -68,6 +68,9 @@ typedef struct {
 
 // Variaveis globais do jogo
 Mapa mapa_atual;
+int vidas_restantes = 3;
+int invencivel = 0; // 1 se for invencível, 0 caso contrário
+float timer_invencibilidade = 0.0f; // Contador para o tempo de invencibilidade
 int fase_atual = 1;
 int total_fases = 10;
 int jogo_completo = 0;
@@ -267,6 +270,8 @@ TelaJogo TelaMenu(void) {
     if (IsKeyPressed(KEY_ENTER)) {
         switch (opcao_menu) {
         case 0:
+			vidas_restantes = 3;
+			invencivel = 0;
             resetar_jogo();
             Tela = NOVO_JOGO;
             break;
@@ -359,7 +364,7 @@ TelaJogo TelaSalvareSair(void) {
 void salvar_ranking(JogadorFinal ranking[]) {
     FILE* arquivo = NULL;
     errno_t err = fopen_s(&arquivo, "assets/highscore.bin", "wb+");
-
+    //luiza: tive que mexer umas 500 vezes aqui pq tava dando erro toda vez pq eu tava usando ab
     if (err != 0 || !arquivo) {
         printf("ERRO: Nao foi possivel salvar highscore.bin\n");
         return;
@@ -664,6 +669,7 @@ void resetar_jogo(void) {
     score_atual = 0;
     jogo_completo = 0;
     velocidade_nave = 3;
+ 
 
     // Inicializar combustível e estados de morte
     combustivel = MAX_COMBUSTIVEL;
@@ -671,6 +677,8 @@ void resetar_jogo(void) {
     timer_gameover = 0.0f;
     for (int i = 0; i < MAX_EXPLOSOES; i++) lista_explosoes[i].ativo = 0;
 
+    invencivel = 0;
+    timer_invencibilidade = 0.0f;
     POSICAOX_NAVE = LARGURA / 2;
     POSICAOY_NAVE = ALTURA - 100;
     POSICAOX_MISSIL = -100;
@@ -802,18 +810,41 @@ int main() {
             TelaAgora = TelaRanking();
             break;
         case NOVO_JOGO:
-            if (!jogo_completo) {
 
+            if (!jogo_completo) {
+                //  vidas_restantes = 3; //essa linha de codigo esta comentada pq fiz ela pra nos deixar invenciveis se preciso para mostrar o trabalho pro professor
                 // Se estiver explodindo, roda animação e espera
                 if (player_explodindo) {
                     atualizar_explosoes(dt);
                     timer_gameover += dt;
                     if (timer_gameover > 1.5f) { // 1.5s de delay antes do game over
-                        TelaAgora = GAME_OVER;
+                        player_explodindo = 0; // Fim da explosão
+                        if (vidas_restantes <= 0) {
+                            TelaAgora = GAME_OVER;
+                        }
+                        else {
+                            vidas_restantes--;
+
+                            //diminui a quantidade de vidas restantes
+                            combustivel = combustivel;
+							//mantenho o combustivel como estava antes
+                            player_explodindo = 0;
+                            timer_gameover = 0.0f;
+                            invencivel = 1;
+							timer_invencibilidade = 2.0f;
+                            POSICAOX_NAVE = POSICAOX_NAVE;
+                            POSICAOY_NAVE = POSICAOY_NAVE;
+                        }
                     }
                 }
                 else {
-
+                    if (invencivel==1) {
+                        timer_invencibilidade -= dt;
+                        if (timer_invencibilidade <= 0.0f) {
+                            invencivel = 0;
+                            timer_invencibilidade = 0.0f;
+                        }
+                    }
                     // Combustível
                     combustivel -= CONSUMO_GASOLINA * dt;
                     if (combustivel <= 0) {
@@ -881,7 +912,7 @@ int main() {
                         }
 
                         // Colisão física com ponte (morte)
-                        if (colisao_ponte(&mapa_atual, POSICAOX_NAVE, POSICAOY_NAVE, TILE_SIZE)) {
+                        if (colisao_ponte(&mapa_atual, POSICAOX_NAVE, POSICAOY_NAVE, TILE_SIZE)&& invencivel==0) {
                             adicionar_explosao((float)POSICAOX_NAVE, (float)POSICAOY_NAVE);
                             player_explodindo = 1;
                         }
@@ -903,13 +934,13 @@ int main() {
                     }
 
                     if (POSICAOY_MISSIL > -50) {
-                        if (colisao_missil(&mapa_atual, POSICAOX_MISSIL, POSICAOY_MISSIL, &score_atual)) {
+                        if (colisao_missil(&mapa_atual, POSICAOX_MISSIL, POSICAOY_MISSIL, &score_atual) && invencivel == 0) {
                             POSICAOY_MISSIL = -100; POSICAOX_MISSIL = -100;
                         }
                     }
 
                     // Colisão física com inimigos/terreno
-                    if (colisao_nave(&mapa_atual, POSICAOX_NAVE, POSICAOY_NAVE, TILE_SIZE)) {
+                    if (colisao_nave(&mapa_atual, POSICAOX_NAVE, POSICAOY_NAVE, TILE_SIZE) && invencivel == 0) {
                         adicionar_explosao((float)POSICAOX_NAVE, (float)POSICAOY_NAVE);
                         player_explodindo = 1;
                     }
@@ -944,7 +975,9 @@ int main() {
 
                     DrawRectangle(0, 0, LARGURA, 30, Fade(BLACK, 0.7f));
                     DrawText(texto, 10, 5, 20, WHITE);
-                    DrawText(TextFormat("Score: %d", score_atual), LARGURA / 2 - 40, 5, 20, WHITE);
+                    DrawText(TextFormat("Score: %d", score_atual), LARGURA / 2 - 90, 5, 20, WHITE);
+                    DrawText(texto, 10, 5, 20, WHITE);
+                    DrawText(TextFormat("Vidas: %d", vidas_restantes), LARGURA / 2 - 200, 5, 20, WHITE);
 
                     // HUD Combustível
                     DrawText("Combustivel", LARGURA - 280, 5, 20, WHITE);
