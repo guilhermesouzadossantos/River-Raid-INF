@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <time.h>
 #include <errno.h>
-#include "menu.h"
 
 #define RIVER_RAID_BLUE Color{39, 43, 174, 255}
 #define LARGURA 960
@@ -811,6 +810,7 @@ int main() {
     SetSoundVolume(som_ponte, 0.8f);
     SetSoundVolume(som_missil, 0.4f);
     SetSoundVolume(som_explosao, 0.4f);
+    SetSoundVolume(som_reabastecer, 0.8f);
 
 
 
@@ -901,7 +901,7 @@ int main() {
                     timer_gameover += dt;
                     if (timer_gameover > 1.5f) { // 1.5s de delay antes do game over
                         player_explodindo = 0; // Fim da explosão
-                        if (vidas_restantes <= 0) {
+                        if (vidas_restantes == 1) {
                             TelaAgora = GAME_OVER;
                         }
                         else {
@@ -977,16 +977,16 @@ int main() {
                     Rectangle nave_source = NAVE_CENTRO; // Sprite padrão
                     {
                         int nova_pos_x = POSICAOX_NAVE;
-                        if (IsKeyDown(KEY_RIGHT)) {
+                        if (IsKeyDown(KEY_RIGHT)|| IsKeyDown(KEY_D)) {
                             nova_pos_x += 5;
                             nave_source = NAVE_DIR; // Sprite Direita
                         }
-                        if (IsKeyDown(KEY_LEFT)) {
+                        if (IsKeyDown(KEY_LEFT)|| IsKeyDown(KEY_A)) {
                             nova_pos_x -= 5;
                             nave_source = NAVE_ESQ; //Sprite Esquerda
                         }
-                        if (IsKeyDown(KEY_DOWN)) POSICAOY_NAVE += 2;
-                        if (IsKeyDown(KEY_UP)) POSICAOY_NAVE -= 5;
+                        if (IsKeyDown(KEY_DOWN) || IsKeyDown(KEY_S)) POSICAOY_NAVE += 2;
+                        if (IsKeyDown(KEY_UP) || IsKeyDown(KEY_W)) POSICAOY_NAVE -= 5;
                         if (IsKeyPressed(KEY_BACKSPACE)) TelaAgora = SALVARESAIR;
 
                         if (posicao_valida_nave(nova_pos_x, POSICAOY_NAVE, &mapa_atual) &&
